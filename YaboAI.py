@@ -8,12 +8,14 @@ import datetime
 OVERTAKE = "overtake"
 COLLISION = "collision"
 FASTEST_LAP = "fastest_lap"
-FASTEST_SECTOR = "fastest_sector"
 SHORT_INTERVAL = "short_interval"
 DNF = "dnf"
 LONG_STINT = "long_stint"
-ABNORMAL_PIT = "abnormal_pit"
 ENTERED_PIT = "entered_pit"
+YELLOW_FLAG = "yellow_flag"
+RACE_COMPLETE = "race_complete"
+LONG_PIT = "long_pit"
+QUICK_PIT = "quick_pit"
 
 # Global constants
 appName = "YaboAI"
@@ -25,7 +27,19 @@ focusTimeMax = 10
 # so this will apply weights to events according to how likely 
 # they are to be discarded from the queue if we are currently reporting
 # and there are more events later in the queue
-eventPriority = { OVERTAKE: 0.2, COLLISION: 0.2, FASTEST_LAP: 0.4, FASTEST_SECTOR: 0.6, SHORT_INTERVAL: 0.5, DNF: 0, LONG_STINT: 0.5 }
+eventPriority = {
+    RACE_COMPLETE: 10,
+    YELLOW_FLAG: 9,
+    DNF: 8,
+    COLLISION: 7,
+    OVERTAKE: 6,
+    FASTEST_LAP: 5,
+    ENTERED_PIT: 4,
+    SHORT_INTERVAL: 3,
+    LONG_STINT: 2,
+    LONG_PIT: 1,
+    QUICK_PIT: 0
+}
 
 # Global variables
 lastUpdateTime = 0
@@ -35,7 +49,6 @@ sectorCount = 0
 carInFocus = 0
 
 eventQueue = []
-drivers = []
 
 stateCurrent: any = None
 statePrevious: any = None
@@ -58,7 +71,7 @@ class Driver:
 
         # Continuously updated
         self.connected = ac.isConnected(id)
-        self.bestLaps = ac.getCarState(id, acsys.CS.BestLap)
+        self.bestLaps = [0, 0, 0]
         self.lastLap = ac.getCarState(id, acsys.CS.LastLap)
         self.lapCount = ac.getCarState(id, acsys.CS.LapCount)
         self.speedKMH = ac.getCarState(id, acsys.CS.SpeedKMH)
@@ -72,23 +85,24 @@ class Driver:
         self.lastPitStart = datetime.datetime.now()
         self.lastPitEnd = datetime.datetime.now()
 
-    def update(self):
+    def update(self, raceMode):
         self.connected = ac.isConnected(id)
-        self.bestLaps = ac.getCarState(id, acsys.CS.BestLap)
+        self.bestLaps[raceMode] = ac.getCarState(id, acsys.CS.BestLap)
         self.lastLap = ac.getCarState(id, acsys.CS.LastLap)
         self.lapCount = ac.getCarState(id, acsys.CS.LapCount)
         self.speedKMH = ac.getCarState(id, acsys.CS.SpeedKMH)
         self.lapDistance = ac.getCarState(id, acsys.CS.NormalizedSplinePosition)
-        self.distance = ac.getCarState(id, acsys.CS.LapCount) + ac.getCarState(id, acsys.CS.NormalizedSplinePosition)
+        self.distance = ac.getCarState(id, acsys.CS.LapCount) + ac.getCarState(id, acsys.CS.NormalizedSplinePosition) if self.connected else -1
         self.compound = ac.getCarTyreCompound(id)
         self.inPit = (ac.isCarInPitline(id) or ac.isCarInPit(id)) if not self.inPit else True
 
+
 class Event:
-    def __init__(self, type, time, drivers, parameters):
+    def __init__(self, type, time, drivers, params):
         self.type = type
         self.time = time
         self.drivers = drivers
-        self.parameters = parameters
+        self.params = params
 
 
 def acMain(ac_version):
@@ -100,6 +114,7 @@ def acMain(ac_version):
 
     ac.addRenderCallback(appWindow, appGL)
 
+    drivers = []
     driverCount = ac.getCarsCount()
     for id in range(driverCount):
         drivers.append(Driver(id))
@@ -117,13 +132,15 @@ def appGL(deltaT):
 def eventPriority():
     pass
 
+
 def reset():
     global lastUpdateTime, stateCurrent, statePrevious
     lastUpdateTime = 0
     statePrevious = stateCurrent
 
+
 def acUpdate(deltaT):
-    global lastUpdateTime, eventQueue, driverCount, carInFocus, statePrevious, stateCurrent, drivers
+    global lastUpdateTime, eventQueue, driverCount, carInFocus, statePrevious, stateCurrent
 
     lastUpdateTime += deltaT
     if lastUpdateTime < 1:
@@ -135,27 +152,23 @@ def acUpdate(deltaT):
 
     # Update drivers
     for driver in stateCurrent.drivers:
-        driver.update()
+        driver.update(stateCurrent.raceMode)
 
-    # Determine current standings
+    # Standings
     if stateCurrent.raceMode == 2:
-        drivers.sort(key=lambda driver: driver.distance, reverse=True)
+        stateCurrent.drivers.sort(key=lambda driver: driver.distance, reverse=True)
     else:
-        for driver in drivers:
+        for driver in stateCurrent.drivers:
             if driver.bestLap == 0:
                 driver.bestLap = 9999999
-        drivers.sort(key=lambda driver: driver.bestLap)
-    standing = [d.carId for d in drivers if d.connected]
+        stateCurrent.drivers.sort(key=lambda driver: driver.bestLap)
+    stateCurrent.standing = [d.carId for d in stateCurrent.drivers if d.connected]
 
-    # Determine the fastest lap
-    fastestLap = statePrevious.bestLap
+    # Fastest lap
+    fastestLap = statePrevious.fastestLap
     for driver in stateCurrent.drivers:
         if driver.bestLap < fastestLap[0]:
             fastestLap = (driver.bestLap, driver)
-
-
-
-    stateCurrent = RaceState(standing, fastestLap)
 
     # Compare the previous and current race states
     if statePrevious == None:
@@ -193,16 +206,39 @@ def acUpdate(deltaT):
         pass
     else:
         isCommentating = True
-        event = eventQueue.pop(0)
-        prompt = generatePrompt(event)
+        prompt = generatePrompt(eventQueue)
 
     reset()
 
 
+def generatePrompt(events):
+    prompt = ''
+    for event in events.sort(reverse=True):
+        if event.type == RACE_COMPLETE:
+            prompt += f'The race has completed. The results are: '
+            for i, driver in enumerate(event.params["results"]):
+                prompt += f"{driver} in {i+1}. "
+        if event.type == YELLOW_FLAG:
+            pass
+        elif event.type == DNF:
+            pass
+        elif event.type == COLLISION:
+            pass
+        elif event.type == OVERTAKE:
+            pass
+        elif event.type == FASTEST_LAP:
+            prompt += f'{event.drivers[0]} just got the fastest lap with a time of {event.params["time"]}. '
+        elif event.type == ENTERED_PIT:
+            prompt += f'{event.drivers[0]} has entered the pit. '
+        elif event.type == SHORT_INTERVAL:
+            pass
+        elif event.type == LONG_STINT:
+            prompt += f'{event.drivers[0]} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting. '
+        elif event.type == LONG_PIT:
+            prompt += f'{event.drivers[0]} had a long pitstop that took {event.params["duration"]} seconds. '
+        elif event.type == QUICK_PIT:
+            prompt += f'{event.drivers[0]} had a very quick pitstop that took {event.params["duration"]} seconds. '
 
-def generatePrompt(event):
-    prompt = f"" 
-    pass
 
 
 def enhanceText(prompt):
