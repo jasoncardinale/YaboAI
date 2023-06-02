@@ -16,6 +16,7 @@ YELLOW_FLAG = "yellow_flag"
 RACE_COMPLETE = "race_complete"
 LONG_PIT = "long_pit"
 QUICK_PIT = "quick_pit"
+MODE_CHANGE = "mode_change"
 
 # Global constants
 appName = "YaboAI"
@@ -181,11 +182,12 @@ def acUpdate(deltaT):
   
   # Compare race mode
   if stateCurrent.raceMode != statePrevious.raceMode:
-
+    params = { "currentMode": stateCurrent.raceMode, "previousMode": statePrevious.raceMode }
+    eventQueue.append(Event(MODE_CHANGE, datetime.datetime.now(), [], params, stateCurrent.raceMode))
 
   # Compare fastest lap
-
-  # 
+  if stateCurrent.fastestLap != statePrevious.fastestLap:
+    eventQueue.append(Event(FASTEST_LAP, datetime.datetime.now(), [stateCurrent.fastestLap[1]], { "lapTime": stateCurrent.fastestLap[0] }, stateCurrent.raceMode))
 
   # Compare standing
   if stateCurrent.standing != statePrevious.standing:
@@ -200,15 +202,15 @@ def acUpdate(deltaT):
     # Driver has entered the pits
     if not driverPrevious.inPit and driverCurrent.inPit:
       driverCurrent.lastPitStart = datetime.datetime.now()
-      eventQueue.append(Event(ENTERED_PIT, datetime.datetime.now(), driverCurrent))
+      eventQueue.append(Event(ENTERED_PIT, datetime.datetime.now(), [driverCurrent], {}, stateCurrent.raceMode))
     # Driver has exited the pits
     if driverPrevious.inPit and not driverCurrent.inPit:
       driverCurrent.lastPitEnd = datetime.datetime.now()
       pitLength = (driverCurrent.lastPitEnd - driverCurrent.lastPitStart).total_seconds()
       if pitLength > 60:
-        eventQueue.append(Event(LONG_PIT, datetime.datetime.now(), driverCurrent, { "pit_length": pitLength }))
+        eventQueue.append(Event(LONG_PIT, datetime.datetime.now(), [driverCurrent], { "pit_length": pitLength }, stateCurrent.raceMode))
       elif pitLength < 30:
-        eventQueue.append(Event(QUICK_PIT, datetime.datetime.now(), driverCurrent, { "pit_length": pitLength }))
+        eventQueue.append(Event(QUICK_PIT, datetime.datetime.now(), [driverCurrent], { "pit_length": pitLength }, stateCurrent.raceMode))
 
   if not eventQueue:
     reset()
@@ -227,8 +229,8 @@ def acUpdate(deltaT):
   reset()
 
 def calculateTimeInterval(driverAhead, driverBehind):
-  distanceDelta = abs(driverAhead.distance - driverBehind.distance)
-  return driverAhead.lastLap - (driverBehind.lastLap * (1 - distanceDelta))
+  deltaD = abs(driverAhead.distance - driverBehind.distance)
+  return driverAhead.lastLap - (driverBehind.lastLap * (1 - deltaD))
 
 
 def generatePrompt(events):
