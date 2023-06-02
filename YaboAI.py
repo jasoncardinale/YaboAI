@@ -3,6 +3,8 @@ import acsys
 from third_party.sim_info import *
 import random
 import datetime
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
 
 # Events
 OVERTAKE = "overtake"
@@ -28,18 +30,18 @@ focusTimeMax = 15
 # so this will apply weights to events according to how likely 
 # they are to be discarded from the queue if we are currently reporting
 # and there are more events later in the queue
-eventPriority = {
-  YELLOW_FLAG: 9,
-  DNF: 8,
-  COLLISION: 7,
-  OVERTAKE: 6,
-  FASTEST_LAP: 5,
-  ENTERED_PIT: 4,
-  SHORT_INTERVAL: 3,
-  LONG_STINT: 2,
-  LONG_PIT: 1,
-  QUICK_PIT: 0
-}
+# eventPriority = {
+#   YELLOW_FLAG: 9,
+#   DNF: 8,
+#   COLLISION: 7,
+#   OVERTAKE: 6,
+#   FASTEST_LAP: 5,
+#   ENTERED_PIT: 4,
+#   SHORT_INTERVAL: 3,
+#   LONG_STINT: 2,
+#   LONG_PIT: 1,
+#   QUICK_PIT: 0
+# }
 
 # Global variables
 lastUpdateTime = 0
@@ -117,9 +119,8 @@ def acMain(ac_version):
   for id in range(driverCount):
     drivers.append(Driver(id))
 
-  standing = [d.carId for d in drivers if d.connected]
-  intervals = [0 for d in standing]
-  stateCurrent, statePrevious = RaceState(drivers, standing, 9999999, [intervals], -1)
+  statePrevious = RaceState(drivers, 9999999, -1)
+  stateCurrent = RaceState(drivers, 9999999, -1)
   return appName
 
 
@@ -138,7 +139,7 @@ def reset():
 
 
 def acUpdate(deltaT):
-  global lastUpdateTime, eventQueue, driverCount, carInFocus, statePrevious, stateCurrent
+  global lastUpdateTime, eventQueue, driverCount, carInFocus, isCommentating, statePrevious, stateCurrent
 
   lastUpdateTime += deltaT
   if lastUpdateTime < 1:
@@ -274,3 +275,19 @@ def enhanceText(prompt):
 
 def textToSpeech(text):
   pass
+
+def requestChatGPT(prompt):
+  driver = webdriver.Chrome()
+  driver.get('https://chatgpt.openai.com/')
+
+  input_field = driver.find_element(By.ID, "prompt-textarea")
+  input_field.send_keys(prompt)
+  input_field.send_keys(Keys.RETURN)
+
+  driver.implicitly_wait(10)
+
+  response = driver.find_element(By.CLASS_NAME, "markdown").text
+  with open('prompts.txt', 'w') as f:
+      f.write(response)
+
+  driver.quit()
