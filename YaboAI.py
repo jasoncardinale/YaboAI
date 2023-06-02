@@ -7,16 +7,16 @@ import datetime
 # Events
 OVERTAKE = "overtake"
 COLLISION = "collision"
-FASTEST_LAP = "fastest_lap"
-SHORT_INTERVAL = "short_interval"
+FASTEST_LAP = "fastest_lap" # Handled
+SHORT_INTERVAL = "short_interval" # Handled
 DNF = "dnf"
 LONG_STINT = "long_stint"
-ENTERED_PIT = "entered_pit"
-YELLOW_FLAG = "yellow_flag"
-RACE_COMPLETE = "race_complete"
-LONG_PIT = "long_pit"
-QUICK_PIT = "quick_pit"
-MODE_CHANGE = "mode_change"
+ENTERED_PIT = "entered_pit" # Handled
+YELLOW_FLAG = "yellow_flag" 
+LONG_PIT = "long_pit" # Handled
+QUICK_PIT = "quick_pit" # Handled
+MODE_CHANGE = "mode_change" # Handled
+DRS_RANGE = "drs_range" # Handled
 
 # Global constants
 appName = "YaboAI"
@@ -29,7 +29,6 @@ focusTimeMax = 15
 # they are to be discarded from the queue if we are currently reporting
 # and there are more events later in the queue
 eventPriority = {
-  RACE_COMPLETE: 10,
   YELLOW_FLAG: 9,
   DNF: 8,
   COLLISION: 7,
@@ -55,10 +54,9 @@ stateCurrent: any = None
 statePrevious: any = None
 
 class RaceState:
-  def __init__(self, drivers, fastestLap, intervals, raceMode):
+  def __init__(self, drivers, fastestLap, raceMode):
     self.drivers = drivers
     self.fastestLap = fastestLap
-    self.intervals = intervals
     self.raceMode = raceMode
 
 class Driver:
@@ -97,12 +95,12 @@ class Driver:
     self.inPit = (ac.isCarInPitline(id) or ac.isCarInPit(id)) if not self.inPit else True
 
 class Event:
-  def __init__(self, type, timestamp, drivers, params, mode):
+  def __init__(self, type, timestamp, drivers, params, raceMode):
     self.type = type
     self.time = timestamp
     self.drivers = drivers
     self.params = params
-    self.mode = mode
+    self.raceMode = raceMode
 
 
 def acMain(ac_version):
@@ -136,7 +134,7 @@ def eventPriority():
 def reset():
   global lastUpdateTime, stateCurrent, statePrevious
   lastUpdateTime = 0
-  statePrevious = stateCurrent
+  statePrevious = RaceState(stateCurrent.drivers, stateCurrent.fastestLap, stateCurrent.intervals, )
 
 
 def acUpdate(deltaT):
@@ -169,10 +167,15 @@ def acUpdate(deltaT):
 
   # Intervals
   if stateCurrent.raceMode == 2:
-    stateCurrent.intervals[0] = (stateCurrent.drivers[0], 0)
     for pos in range(1, len(stateCurrent.drivers)):
       interval = calculateTimeInterval(stateCurrent.drivers[pos - 1], stateCurrent.drivers[pos])
-      stateCurrent.intervals[pos] = (stateCurrent.drivers[pos], interval)
+      params = { "driverAhead": stateCurrent.drivers[pos - 1], "driverBehind": stateCurrent.drivers[pos] }
+      involvedDrivers = stateCurrent.drivers[pos-1:pos+1]
+      params = { "interval": interval }
+      if (interval < 2 and interval > 1):
+        eventQueue.append(Event(SHORT_INTERVAL, datetime.datetime.now(), involvedDrivers, params, stateCurrent.raceMode))
+      elif (interval <= 1):
+        eventQueue.append(Event(DRS_RANGE, datetime.datetime.now(), involvedDrivers, params, stateCurrent.raceMode))
 
 
   ### Compare the previous and current states ###
@@ -182,8 +185,7 @@ def acUpdate(deltaT):
   
   # Compare race mode
   if stateCurrent.raceMode != statePrevious.raceMode:
-    params = { "currentMode": stateCurrent.raceMode, "previousMode": statePrevious.raceMode }
-    eventQueue.append(Event(MODE_CHANGE, datetime.datetime.now(), [], params, stateCurrent.raceMode))
+    eventQueue.append(Event(MODE_CHANGE, datetime.datetime.now(), [], {}, stateCurrent.raceMode))
 
   # Compare fastest lap
   if stateCurrent.fastestLap != statePrevious.fastestLap:
@@ -236,30 +238,35 @@ def calculateTimeInterval(driverAhead, driverBehind):
 def generatePrompt(events):
   prompt = ''
   for event in events.sort(reverse=True):
-    if event.type == RACE_COMPLETE:
-      prompt += f'The race has completed. The results are: '
-      for i, driver in enumerate(event.params["results"]):
-        prompt += f"{driver} in {i+1}. "
+    if event.type == MODE_CHANGE:
+      # ToDo: need to figure out how to know when the checkered flag is shown
+      if event.raceMode == 3:
+        prompt += f'The race has completed. The results are: '
+        for i, driver in enumerate(event.params["results"]):
+          prompt += f"{driver} in {i+1}. "
     if event.type == YELLOW_FLAG:
       pass
     elif event.type == DNF:
+
       pass
     elif event.type == COLLISION:
+      prompt += f'{event.drivers[0]} and {event.drivers[1]} '
       pass
     elif event.type == OVERTAKE:
       pass
     elif event.type == FASTEST_LAP:
-      prompt += f'{event.drivers[0]} just got the fastest lap with a time of {event.params["time"]}. '
+      prompt += f'{event.drivers[0].name} just got the fastest lap with a time of {event.params["time"]}. '
     elif event.type == ENTERED_PIT:
-      prompt += f'{event.drivers[0]} has entered the pit. '
+      prompt += f'{event.drivers[0].name} has entered the pit. '
     elif event.type == SHORT_INTERVAL:
+      prompt += f'{event.drivers[0].name} is only {event.params["interval"]}'
       pass
     elif event.type == LONG_STINT:
-      prompt += f'{event.drivers[0]} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting. '
+      prompt += f'{event.drivers[0].name} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting. '
     elif event.type == LONG_PIT:
-      prompt += f'{event.drivers[0]} had a long pitstop that took {event.params["duration"]} seconds. '
+      prompt += f'{event.drivers[0].name} had a long pitstop that took {event.params["duration"]} seconds. '
     elif event.type == QUICK_PIT:
-      prompt += f'{event.drivers[0]} had a very quick pitstop that took {event.params["duration"]} seconds. '
+      prompt += f'{event.drivers[0].name} had a very quick pitstop that took {event.params["duration"]} seconds. '
 
 def enhanceText(prompt):
   pass
