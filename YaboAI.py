@@ -5,9 +5,10 @@ import random
 import datetime
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+import time
 
 # Events
-OVERTAKE = "overtake"
+OVERTAKE = "overtake" # Handled
 COLLISION = "collision"
 FASTEST_LAP = "fastest_lap" # Handled
 SHORT_INTERVAL = "short_interval" # Handled
@@ -135,7 +136,7 @@ def eventPriority():
 def reset():
   global lastUpdateTime, stateCurrent, statePrevious
   lastUpdateTime = 0
-  statePrevious = RaceState(stateCurrent.drivers, stateCurrent.fastestLap, stateCurrent.intervals, )
+  statePrevious = RaceState(stateCurrent.drivers, stateCurrent.fastestLap, stateCurrent.raceMode)
 
 
 def acUpdate(deltaT):
@@ -151,11 +152,10 @@ def acUpdate(deltaT):
   stateCurrent.raceMode = simInfo.graphics.session
 
   # Update drivers/Fastest lap
-  fastestLap = statePrevious.fastestLap
   for driver in stateCurrent.drivers:
     driver.update(stateCurrent.raceMode)
-    if driver.bestLap < fastestLap[0]:
-      fastestLap = (driver.bestLap, driver)
+    if driver.bestLap < statePrevious.fastestLap[stateCurrent.raceMode]:
+      stateCurrent.fastestLap = (driver.bestLap, driver)
 
   # Standings
   if stateCurrent.raceMode == 2:
@@ -165,6 +165,13 @@ def acUpdate(deltaT):
       if driver.bestLap == 0:
         driver.bestLap = 9999999
     stateCurrent.drivers.sort(key=lambda driver: driver.bestLap[stateCurrent.raceMode])
+
+  # Overtakes
+  for driver in range(stateCurrent.drivers.length):
+    if stateCurrent.drivers[driver].carId != statePrevious.drivers[driver].cardId:
+      params = { "position": driver, "overtaker": stateCurrent.drivers[driver].name, "overtaken": statePrevious.drivers[driver].name }
+      eventQueue.append(Event(OVERTAKE, datetime.datetime.now(), [], params, stateCurrent.raceMode))
+      break
 
   # Intervals
   if stateCurrent.raceMode == 2:
@@ -227,6 +234,8 @@ def acUpdate(deltaT):
     prompt = generatePrompt(eventQueue)
     script = enhanceText(prompt)
     audio = textToSpeech(script)
+    if audio:
+      isCommentating = False
     # Write audio to disk
 
   reset()
@@ -236,45 +245,47 @@ def calculateTimeInterval(driverAhead, driverBehind):
   return driverAhead.lastLap - (driverBehind.lastLap * (1 - deltaD))
 
 
-def generatePrompt(events):
+def generatePrompt(event):
   prompt = ''
-  for event in events.sort(reverse=True):
-    if event.type == MODE_CHANGE:
-      # ToDo: need to figure out how to know when the checkered flag is shown
-      if event.raceMode == 3:
-        prompt += f'The race has completed. The results are: '
-        for i, driver in enumerate(event.params["results"]):
-          prompt += f"{driver} in {i+1}. "
-    if event.type == YELLOW_FLAG:
-      pass
-    elif event.type == DNF:
-
-      pass
-    elif event.type == COLLISION:
-      prompt += f'{event.drivers[0]} and {event.drivers[1]} '
-      pass
-    elif event.type == OVERTAKE:
-      pass
-    elif event.type == FASTEST_LAP:
-      prompt += f'{event.drivers[0].name} just got the fastest lap with a time of {event.params["time"]}. '
-    elif event.type == ENTERED_PIT:
-      prompt += f'{event.drivers[0].name} has entered the pit. '
-    elif event.type == SHORT_INTERVAL:
-      prompt += f'{event.drivers[0].name} is only {event.params["interval"]}'
-      pass
-    elif event.type == LONG_STINT:
-      prompt += f'{event.drivers[0].name} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting. '
-    elif event.type == LONG_PIT:
-      prompt += f'{event.drivers[0].name} had a long pitstop that took {event.params["duration"]} seconds. '
-    elif event.type == QUICK_PIT:
-      prompt += f'{event.drivers[0].name} had a very quick pitstop that took {event.params["duration"]} seconds. '
+  # for event in events.sort(reverse=True):
+  if event.type == MODE_CHANGE:
+    # ToDo: need to figure out how to know when the checkered flag is shown
+    if event.raceMode == 3:
+      prompt += f'The race has completed. The results are: '
+      for i, driver in enumerate(event.params["results"]):
+        prompt += f"{driver} in {i+1}. "
+  if event.type == YELLOW_FLAG:
+    pass
+  elif event.type == DNF:
+    pass
+  elif event.type == COLLISION:
+    prompt += f'{event.drivers[0]} and {event.drivers[1]} had a collision'
+    pass
+  elif event.type == OVERTAKE:
+    prompt += f'{event.params["overtaker"]} just overtook {event.params["overtaken"]} and is now in position {event.params["position"]}'
+  elif event.type == FASTEST_LAP:
+    prompt += f'{event.drivers[0].name} just got the fastest lap with a time of {event.params["time"]}. '
+  elif event.type == ENTERED_PIT:
+    prompt += f'{event.drivers[0].name} has entered the pit. '
+  elif event.type == SHORT_INTERVAL:
+    prompt += f'{event.drivers[0].name} is only {event.params["interval"]}'
+    pass
+  elif event.type == LONG_STINT:
+    prompt += f'{event.drivers[0].name} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting.'
+  elif event.type == LONG_PIT:
+    prompt += f'{event.drivers[0].name} had a long pitstop that took {event.params["duration"]} seconds.'
+  elif event.type == QUICK_PIT:
+    prompt += f'{event.drivers[0].name} had a very quick pitstop that took {event.params["duration"]} seconds.'
+  
+  return prompt
 
 def enhanceText(prompt):
-  pass
+  return requestChatGPT(prompt)
 
 
 def textToSpeech(text):
-  pass
+  time.sleep(10)
+  return True
 
 def requestChatGPT(prompt):
   driver = webdriver.Chrome()
@@ -291,3 +302,5 @@ def requestChatGPT(prompt):
       f.write(response)
 
   driver.quit()
+
+  return response
