@@ -57,11 +57,11 @@ statePrevious = None
 
 currentState = {
   "drivers": [],
-  "fastestLap": (99999, {})
+  "fastestLap": (sys.maxsize, 0)
 }
 previousState = {
   "drivers": [],
-  "fastestLap": (99999, {})
+  "fastestLap": (sys.maxsize, 0)
 }
 
 def getEvent(type, drivers, params):
@@ -124,7 +124,7 @@ def eventPriority():
 def step():
   global lastUpdateTime, currentState, previousState
   lastUpdateTime = 0
-  previousState = currentState
+  previousState = currentState.copy()
 
 
 def acUpdate(deltaT):
@@ -136,21 +136,33 @@ def acUpdate(deltaT):
 
 
   ### Get current state ###
+  for pos in range(len(currentState["drivers"])):
+    updatedDriver = getDriverInfo(currentState["drivers"][pos]["id"])
+    currentState["drivers"][pos] = updatedDriver
+    # ac.console("time: {}".format(updatedDriver["bestLap"]))
+    if updatedDriver["bestLap"] > 0 and updatedDriver["bestLap"] < currentState["fastestLap"][0]:
+      currentState["fastestLap"] = (updatedDriver["bestLap"], updatedDriver["name"])
+      ac.console("fastest: {}".format(currentState["fastestLap"][0]))
+  ac.console("prev: {}, curr: {}".format(previousState["fastestLap"][0], currentState["fastestLap"][0]))
+  if currentState["fastestLap"][0] < previousState["fastestLap"][0]:
+    ac.console("{} just set the fastest lap with a time of {}".format(currentState["fastestLap"][1], currentState["fastestLap"][0]))
   # Update drivers/Fastest lap
-  ac.console("=====================")
-  for driver in currentState["drivers"]:
-    ac.console(driver["name"])
-    currentState["drivers"][driver["id"]] = getDriverInfo(driver["id"]).copy()
-    if currentState["drivers"][driver["id"]]["bestLap"] < previousState["fastestLap"][0]:
-      currentState["fastestLap"] = (currentState["drivers"][driver["id"]]["bestLap"], currentState["drivers"][driver["id"]])
-  ac.console("=====================")
+  # ac.console("=====================")
+  # for pos in range(len(currentState["drivers"])):
+  #   ac.console(driver["name"])
+  #   currentState["drivers"][driver["id"]] = getDriverInfo(driver["id"]).copy()
+  #   if currentState["drivers"][driver["id"]]["bestLap"] < previousState["fastestLap"][0]:
+  #     currentState["fastestLap"] = (currentState["drivers"][driver["id"]]["bestLap"], currentState["drivers"][driver["id"]])
+  # ac.console("=====================")
 
   # Standings
   if simInfo.graphics.session == 2:
-    # ac.console("sort drivers")
+    # ac.console(lastUpdateTime)
     currentState["drivers"].sort(key=lambda driver: driver["distance"], reverse=True)
+    # ac.console("=====================")
     # for driver in currentState["drivers"]:
     #   ac.console(driver["name"])
+    # ac.console("=====================")
   else:
     for driver in currentState["drivers"]:
       if driver["bestLap"] == 0:
@@ -161,7 +173,12 @@ def acUpdate(deltaT):
   for pos in range(len(currentState["drivers"])):
     # ac.console(currentState["drivers"][pos]["name"])
     # ac.console(previousState["drivers"])
+    # ac.console("======")
+    # ac.console("{}".format(previousState["drivers"][pos]["id"]))
+    # ac.console("{}".format(currentState["drivers"][pos]["id"]))
+    # ac.console("======")
     if currentState["drivers"][pos]["id"] != previousState["drivers"][pos]["id"]:
+      ac.console("OVERTAKE")
       params = { "position": pos, "overtaker": currentState["drivers"][pos]["id"], "overtaken": previousState["drivers"][pos]["id"] }
       eventQueue.append(getEvent(OVERTAKE, [], params))
       break
