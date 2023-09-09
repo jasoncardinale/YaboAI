@@ -18,7 +18,6 @@ ENTERED_PIT = "entered_pit" # Handled
 YELLOW_FLAG = "yellow_flag" 
 LONG_PIT = "long_pit" # Handled
 QUICK_PIT = "quick_pit" # Handled
-MODE_CHANGE = "mode_change" # Handled
 DRS_RANGE = "drs_range" # Handled
 
 # Global constants
@@ -109,6 +108,7 @@ def acMain(ac_version):
     drivers.append(getDriverInfo(id))
 
   previousState["drivers"] = drivers
+  currentState["drivers"] = drivers
 
   return appName
 
@@ -137,14 +137,20 @@ def acUpdate(deltaT):
 
   ### Get current state ###
   # Update drivers/Fastest lap
-  for driver in previousState["drivers"]:
-    currentState["drivers"][driver["id"]] = getDriverInfo(driver["id"])
-    if currentState["drivers"][driver["id"]] < previousState["fastestLap"][0]:
-      currentState["fastestLap"] = (driver["bestLap"], driver)
+  ac.console("=====================")
+  for driver in currentState["drivers"]:
+    ac.console(driver["name"])
+    currentState["drivers"][driver["id"]] = getDriverInfo(driver["id"]).copy()
+    if currentState["drivers"][driver["id"]]["bestLap"] < previousState["fastestLap"][0]:
+      currentState["fastestLap"] = (currentState["drivers"][driver["id"]]["bestLap"], currentState["drivers"][driver["id"]])
+  ac.console("=====================")
 
   # Standings
   if simInfo.graphics.session == 2:
+    # ac.console("sort drivers")
     currentState["drivers"].sort(key=lambda driver: driver["distance"], reverse=True)
+    # for driver in currentState["drivers"]:
+    #   ac.console(driver["name"])
   else:
     for driver in currentState["drivers"]:
       if driver["bestLap"] == 0:
@@ -153,32 +159,34 @@ def acUpdate(deltaT):
 
   # Overtakes
   for pos in range(len(currentState["drivers"])):
+    # ac.console(currentState["drivers"][pos]["name"])
+    # ac.console(previousState["drivers"])
     if currentState["drivers"][pos]["id"] != previousState["drivers"][pos]["id"]:
-      params = { "position": pos, "overtaker": currentState["drivers"][pos]["id"], "overtaken": previousState["dirvers"][pos]["id"] }
+      params = { "position": pos, "overtaker": currentState["drivers"][pos]["id"], "overtaken": previousState["drivers"][pos]["id"] }
       eventQueue.append(getEvent(OVERTAKE, [], params))
       break
 
-  # Intervals
-  if simInfo.graphics.session == 2:
-    for pos in range(1, len(currentState["drivers"])):
-      interval = calculateTimeInterval(currentState["drivers"][pos - 1], currentState["drivers"][pos])
-      params = { "driverAhead": currentState["drivers"][pos - 1], "driverBehind": currentState["drivers"][pos], "interval": interval }
-      if (interval < 2 and interval > 1):
-        eventQueue.append(getEvent(SHORT_INTERVAL, [], params))
-      elif (interval <= 1):
-        eventQueue.append(getEvent(DRS_RANGE, [], params))
+  # # Intervals
+  # if simInfo.graphics.session == 2:
+  #   for pos in range(1, len(currentState["drivers"])):
+  #     interval = calculateTimeInterval(currentState["drivers"][pos - 1], currentState["drivers"][pos])
+  #     params = { "driverAhead": currentState["drivers"][pos - 1], "driverBehind": currentState["drivers"][pos], "interval": interval }
+  #     if (interval < 2 and interval > 1):
+  #       eventQueue.append(getEvent(SHORT_INTERVAL, [], params))
+  #     elif (interval <= 1):
+  #       eventQueue.append(getEvent(DRS_RANGE, [], params))
 
 
   # Compare fastest lap
   if currentState["fastestLap"] != previousState["fastestLap"]:
-    eventQueue.append(getEvent(FASTEST_LAP, [currentState["fastLap"][1]], { "lapTime": currentState["fastestLap"][0] }))
+    eventQueue.append(getEvent(FASTEST_LAP, [currentState["fastestLap"][1]], { "lapTime": currentState["fastestLap"][0] }))
 
   # Compare standing
-  if currentState["standing"] != previousState["standing"]:
-    max_len = max(len(previousState["standing"]), len(currentState["standing"]))
-    for i in range(max_len):
-      if currentState["standing"][i] != statePrevious["standing"][i]:
-        pass
+  # if currentState["drivers"] != previousState["standing"]:
+  #   max_len = max(len(previousState["standing"]), len(currentState["standing"]))
+  #   for i in range(max_len):
+  #     if currentState["standing"][i] != statePrevious["standing"][i]:
+  #       pass
 
   # # Compare pit times
   # for driverCurrent in stateCurrent.drivers:
@@ -196,22 +204,23 @@ def acUpdate(deltaT):
   #     elif pitLength < 30:
   #       eventQueue.append(Event(QUICK_PIT, datetime.datetime.now(), [driverCurrent], { "pit_length": pitLength }, stateCurrent.raceMode))
 
-  # if not eventQueue:
-  #   reset()
-  #   return
+  if len(eventQueue) == 0:
+    # ac.console("No events")
+    step()
+    return
 
-  # if isCommentating:
-  #   # use probability to determine if the next event in queue should be discarded
-  #   pass
-  # else:
-  #   isCommentating = True
-  #   prompt = generatePrompt(eventQueue)
-  #   script = enhanceText(prompt)
-  #   audio = textToSpeech(script)
-  #   if audio:
-  #     isCommentating = False
+  if isCommentating:
+    # use probability to determine if the next event in queue should be discarded
+    pass
+  else:
+    isCommentating = True
+    prompt = generatePrompt(eventQueue.pop())
+    script = enhanceText(prompt)
+    audio = textToSpeech(script)
+    if audio:
+      isCommentating = False
 
-  # reset()
+  step()
 
 def calculateTimeInterval(driverAhead, driverBehind):
   deltaD = abs(driverAhead["distance"] - driverBehind["distance"])
@@ -219,46 +228,51 @@ def calculateTimeInterval(driverAhead, driverBehind):
 
 
 def generatePrompt(event):
-  prompt = ''
   # for event in events.sort(reverse=True):
-  if event.type == MODE_CHANGE:
-    # ToDo: need to figure out how to know when the checkered flag is shown
-    if event.raceMode == 3:
-      prompt += f'The race has completed. The results are: '
-      for i, driver in enumerate(event.params["results"]):
-        prompt += f"{driver} in {i+1}. "
-  if event.type == YELLOW_FLAG:
-    pass
-  elif event.type == DNF:
-    pass
-  elif event.type == COLLISION:
-    prompt += f'{event.drivers[0]} and {event.drivers[1]} had a collision'
-    pass
-  elif event.type == OVERTAKE:
-    prompt += f'{event.params["overtaker"]} just overtook {event.params["overtaken"]} and is now in position {event.params["position"]}'
-  elif event.type == FASTEST_LAP:
-    prompt += f'{event.drivers[0].name} just got the fastest lap with a time of {event.params["time"]}. '
-  elif event.type == ENTERED_PIT:
-    prompt += f'{event.drivers[0].name} has entered the pit. '
-  elif event.type == SHORT_INTERVAL:
-    prompt += f'{event.drivers[0].name} is only {event.params["interval"]}'
-    pass
-  elif event.type == LONG_STINT:
-    prompt += f'{event.drivers[0].name} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting.'
-  elif event.type == LONG_PIT:
-    prompt += f'{event.drivers[0].name} had a long pitstop that took {event.params["duration"]} seconds.'
-  elif event.type == QUICK_PIT:
-    prompt += f'{event.drivers[0].name} had a very quick pitstop that took {event.params["duration"]} seconds.'
+  # if event.type == MODE_CHANGE:
+  #   # ToDo: need to figure out how to know when the checkered flag is shown
+  #   if event.raceMode == 3:
+  #     prompt += f'The race has completed. The results are: '
+  #     for i, driver in enumerate(event.params["results"]):
+  #       prompt += f"{driver} in {i+1}. "
+  if event["type"] == YELLOW_FLAG:
+    return ""
+  elif event["type"] == DNF:
+    return ""
+  # elif event.type == COLLISION:
+  #   prompt += f"{event['drivers'][0]} and {event['drivers'][1]} had a collision"
+  #   pass
+  elif event["type"] == OVERTAKE:
+    prompt = "{} has overtaken".format(event["params"]["overtaker"])
+    # prompt = f"{event['params']['overtaker']} has overtaken {event['params']['overtaken']} and is now in position {event['params']['position']}"
+    ac.log(prompt)
+    ac.console(prompt)
+    return prompt
+  # elif event.type == FASTEST_LAP:
+  #   prompt += f'{event.drivers[0].name} just got the fastest lap with a time of {event.params["time"]}. '
+  # elif event.type == ENTERED_PIT:
+  #   prompt += f'{event.drivers[0].name} has entered the pit. '
+  # elif event.type == SHORT_INTERVAL:
+  #   prompt += f'{event.drivers[0].name} is only {event.params["interval"]}'
+  #   pass
+  # elif event.type == LONG_STINT:
+  #   prompt += f'{event.drivers[0].name} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting.'
+  # elif event.type == LONG_PIT:
+  #   prompt += f'{event.drivers[0].name} had a long pitstop that took {event.params["duration"]} seconds.'
+  # elif event.type == QUICK_PIT:
+  #   prompt += f'{event.drivers[0].name} had a very quick pitstop that took {event.params["duration"]} seconds.'
   
+  # ac.log(prompt)
+  # ac.console(prompt)
+  # return prompt
+
+def enhanceText(prompt):
   return prompt
 
-# def enhanceText(prompt):
-#   return prompt
 
-
-# def textToSpeech(text):
-#   time.sleep(10)
-#   return True
+def textToSpeech(text):
+  time.sleep(10)
+  return True
 
 # def requestChatGPT(prompt):
 #   driver = webdriver.Chrome()
