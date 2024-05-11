@@ -1,10 +1,9 @@
 import ac
 import acsys
+import copy
 from third_party.sim_info import *
 import random
 import datetime
-# from selenium import webdriver
-# from selenium.webdriver.common.keys import Keys
 import time
 
 # Events
@@ -57,11 +56,11 @@ statePrevious = None
 
 currentState = {
   "drivers": [],
-  "fastestLap": (sys.maxsize, 0)
+  "fastestLap": (sys.maxsize, "")
 }
 previousState = {
   "drivers": [],
-  "fastestLap": (sys.maxsize, 0)
+  "fastestLap": (sys.maxsize, "")
 }
 
 def getEvent(type, drivers, params):
@@ -124,7 +123,7 @@ def eventPriority():
 def step():
   global lastUpdateTime, currentState, previousState
   lastUpdateTime = 0
-  previousState = currentState.copy()
+  previousState = copy.deepcopy(currentState)
 
 
 def acUpdate(deltaT):
@@ -141,11 +140,10 @@ def acUpdate(deltaT):
     currentState["drivers"][pos] = updatedDriver
     # ac.console("time: {}".format(updatedDriver["bestLap"]))
     if updatedDriver["bestLap"] > 0 and updatedDriver["bestLap"] < currentState["fastestLap"][0]:
-      currentState["fastestLap"] = (updatedDriver["bestLap"], updatedDriver["name"])
-      ac.console("fastest: {}".format(currentState["fastestLap"][0]))
-  ac.console("prev: {}, curr: {}".format(previousState["fastestLap"][0], currentState["fastestLap"][0]))
-  if currentState["fastestLap"][0] < previousState["fastestLap"][0]:
-    ac.console("{} just set the fastest lap with a time of {}".format(currentState["fastestLap"][1], currentState["fastestLap"][0]))
+      currentState["fastestLap"] = (updatedDriver["bestLap"], updatedDriver)
+      # ac.console("fastest: {}".format(currentState["fastestLap"][0]))
+  # if currentState["fastestLap"][0] < previousState["fastestLap"][0]:
+    # ac.console("{} just set the fastest lap with a time of {}".format(currentState["fastestLap"][1], currentState["fastestLap"][0]))
   # Update drivers/Fastest lap
   # ac.console("=====================")
   # for pos in range(len(currentState["drivers"])):
@@ -163,6 +161,10 @@ def acUpdate(deltaT):
     # for driver in currentState["drivers"]:
     #   ac.console(driver["name"])
     # ac.console("=====================")
+    curr_drivers = [driver["name"] for driver in currentState["drivers"]]
+    prev_drivers = [driver["name"] for driver in previousState["drivers"]]
+    # ac.console("prev -- {}".format(', '.join(prev_drivers)))
+    # ac.console("curr -- {}".format(', '.join(curr_drivers)))
   else:
     for driver in currentState["drivers"]:
       if driver["bestLap"] == 0:
@@ -173,13 +175,13 @@ def acUpdate(deltaT):
   for pos in range(len(currentState["drivers"])):
     # ac.console(currentState["drivers"][pos]["name"])
     # ac.console(previousState["drivers"])
-    # ac.console("======")
-    # ac.console("{}".format(previousState["drivers"][pos]["id"]))
-    # ac.console("{}".format(currentState["drivers"][pos]["id"]))
+    # ac.console("{}======".format(datetime.datetime.now()))
+    # ac.console("{}".format(previousState["drivers"][pos]["name"]))
+    # ac.console("name: {}, id: {}".format(currentState["drivers"][pos]["name"], currentState["drivers"][pos]["id"]))
     # ac.console("======")
     if currentState["drivers"][pos]["id"] != previousState["drivers"][pos]["id"]:
       ac.console("OVERTAKE")
-      params = { "position": pos, "overtaker": currentState["drivers"][pos]["id"], "overtaken": previousState["drivers"][pos]["id"] }
+      params = { "position": pos, "overtaker": currentState["drivers"][pos]["name"], "overtaken": previousState["drivers"][pos]["name"] }
       eventQueue.append(getEvent(OVERTAKE, [], params))
       break
 
@@ -222,7 +224,7 @@ def acUpdate(deltaT):
   #       eventQueue.append(Event(QUICK_PIT, datetime.datetime.now(), [driverCurrent], { "pit_length": pitLength }, stateCurrent.raceMode))
 
   if len(eventQueue) == 0:
-    # ac.console("No events")
+    # ac.console("{} -- No events".format(datetime.datetime.now()))
     step()
     return
 
@@ -245,6 +247,7 @@ def calculateTimeInterval(driverAhead, driverBehind):
 
 
 def generatePrompt(event):
+  ac.console("{} -- event type: {}".format(datetime.datetime.now(), event["type"]))
   # for event in events.sort(reverse=True):
   # if event.type == MODE_CHANGE:
   #   # ToDo: need to figure out how to know when the checkered flag is shown
@@ -252,21 +255,18 @@ def generatePrompt(event):
   #     prompt += f'The race has completed. The results are: '
   #     for i, driver in enumerate(event.params["results"]):
   #       prompt += f"{driver} in {i+1}. "
+  prompt = ""
   if event["type"] == YELLOW_FLAG:
-    return ""
+    pass
   elif event["type"] == DNF:
-    return ""
+    pass
   # elif event.type == COLLISION:
   #   prompt += f"{event['drivers'][0]} and {event['drivers'][1]} had a collision"
   #   pass
   elif event["type"] == OVERTAKE:
-    prompt = "{} has overtaken".format(event["params"]["overtaker"])
-    # prompt = f"{event['params']['overtaker']} has overtaken {event['params']['overtaken']} and is now in position {event['params']['position']}"
-    ac.log(prompt)
-    ac.console(prompt)
-    return prompt
-  # elif event.type == FASTEST_LAP:
-  #   prompt += f'{event.drivers[0].name} just got the fastest lap with a time of {event.params["time"]}. '
+    prompt = "{} has overtaken {} and is now in position {}".format(event["params"]["overtaker"], event['params']['overtaken'], event['params']['position'])
+  elif event["type"] == FASTEST_LAP:
+    prompt = "{} just set the fastest lap with a time of {}".format(event['drivers'][0]["name"], event['params']['lapTime'])
   # elif event.type == ENTERED_PIT:
   #   prompt += f'{event.drivers[0].name} has entered the pit. '
   # elif event.type == SHORT_INTERVAL:
@@ -279,16 +279,15 @@ def generatePrompt(event):
   # elif event.type == QUICK_PIT:
   #   prompt += f'{event.drivers[0].name} had a very quick pitstop that took {event.params["duration"]} seconds.'
   
-  # ac.log(prompt)
-  # ac.console(prompt)
-  # return prompt
+  ac.console(prompt)
+  return prompt
 
 def enhanceText(prompt):
   return prompt
 
 
 def textToSpeech(text):
-  time.sleep(10)
+  # time.sleep(10)
   return True
 
 # def requestChatGPT(prompt):
