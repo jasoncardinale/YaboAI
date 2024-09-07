@@ -5,7 +5,5 @@
     # Run the linter.
     - id: ruff
       args: [ --fix ]
-      files: YaboAI.py
     # Run the formatter.
     - id: ruff-format
-      files: YaboAI.py

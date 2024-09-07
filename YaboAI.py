@@ -162,6 +162,8 @@ def acUpdate(deltaT):
 
 
 
+
+
     # Standings
     if simInfo.graphics.session == 2:
         # ac.console(lastUpdateTime)
