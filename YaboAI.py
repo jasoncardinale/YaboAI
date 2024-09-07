@@ -1,10 +1,10 @@
 import copy
 import datetime
 
-import ac
-import acsys
+import ac  # type: ignore
+import acsys  # type: ignore
 
-from third_party.sim_info import *
+from third_party.sim_info import SimInfo, sys
 
 # Events
 OVERTAKE = "overtake"  # Handled
@@ -160,8 +160,6 @@ def acUpdate(deltaT):
     #     currentState["fastestLap"] = (currentState["drivers"][driver["id"]]["bestLap"], currentState["drivers"][driver["id"]])
     # ac.console("=====================")
 
-
-
     # Standings
     if simInfo.graphics.session == 2:
         # ac.console(lastUpdateTime)
@@ -172,8 +170,10 @@ def acUpdate(deltaT):
         # for driver in currentState["drivers"]:
         #   ac.console(driver["name"])
         # ac.console("=====================")
-        curr_drivers = [driver["name"] for driver in currentState["drivers"]]
-        prev_drivers = [driver["name"] for driver in previousState["drivers"]]
+
+        # curr_drivers = [driver["name"] for driver in currentState["drivers"]]
+        # prev_drivers = [driver["name"] for driver in previousState["drivers"]]
+
         # ac.console("prev -- {}".format(', '.join(prev_drivers)))
         # ac.console("curr -- {}".format(', '.join(curr_drivers)))
     else:
