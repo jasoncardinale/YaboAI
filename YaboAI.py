@@ -160,6 +160,8 @@ def acUpdate(deltaT):
     #     currentState["fastestLap"] = (currentState["drivers"][driver["id"]]["bestLap"], currentState["drivers"][driver["id"]])
     # ac.console("=====================")
 
+
+
     # Standings
     if simInfo.graphics.session == 2:
         # ac.console(lastUpdateTime)
