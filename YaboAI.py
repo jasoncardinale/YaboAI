@@ -4,7 +4,7 @@ import datetime
 import ac  # type: ignore
 import acsys  # type: ignore
 
-from models.Event import EventType
+from models.Event import Event, EventType
 from third_party.sim_info import SimInfo, sys
 
 # Global constants
@@ -28,16 +28,6 @@ statePrevious = None
 
 currentState = {"drivers": [], "fastestLap": (sys.maxsize, "")}
 previousState = {"drivers": [], "fastestLap": (sys.maxsize, "")}
-
-
-def getEvent(type, drivers, params):
-    return {
-        "type": type,
-        "time": datetime.datetime.now(),
-        "drivers": drivers,
-        "params": params,
-        "raceMode": simInfo.graphics.session,
-    }
 
 
 def getDriverInfo(id):
@@ -169,7 +159,7 @@ def acUpdate(deltaT):
                 "overtaker": currentState["drivers"][pos]["name"],
                 "overtaken": previousState["drivers"][pos]["name"],
             }
-            event_queue.append(getEvent(EventType.OVERTAKE, [], params))
+            event_queue.append(Event(EventType.OVERTAKE, [], params))
             break
 
     # # Intervals
@@ -185,7 +175,7 @@ def acUpdate(deltaT):
     # Compare fastest lap
     if currentState["fastestLap"] != previousState["fastestLap"]:
         event_queue.append(
-            getEvent(
+            Event(
                 EventType.FASTEST_LAP,
                 [currentState["fastestLap"][1]],
                 {"lapTime": currentState["fastestLap"][0]},
