@@ -4,7 +4,7 @@ import datetime
 import ac  # type: ignore
 import acsys  # type: ignore
 
-from models import EventType
+from models.Event import EventType
 from third_party.sim_info import SimInfo, sys
 
 # Global constants
