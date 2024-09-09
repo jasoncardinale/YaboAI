@@ -4,52 +4,24 @@ import datetime
 import ac  # type: ignore
 import acsys  # type: ignore
 
+from models import EventType
 from third_party.sim_info import SimInfo, sys
 
-# Events
-OVERTAKE = "overtake"  # Handled
-COLLISION = "collision"
-FASTEST_LAP = "fastest_lap"  # Handled
-SHORT_INTERVAL = "short_interval"  # Handled
-DNF = "dnf"
-LONG_STINT = "long_stint"
-ENTERED_PIT = "entered_pit"  # Handled
-YELLOW_FLAG = "yellow_flag"
-LONG_PIT = "long_pit"  # Handled
-QUICK_PIT = "quick_pit"  # Handled
-DRS_RANGE = "drs_range"  # Handled
-
 # Global constants
-appName = "YaboAI"
-simInfo = SimInfo()
-focusTimeMin = 3
-focusTimeMax = 15
+APP_NAME = "YaboAI"
+FOCUS_DURATION_MIN_MS = 300
+FOCUS_DURATION_MAX_MS = 1500
 
-# We don't want to be reporting events that happened too long ago
-# so this will apply weights to events according to how likely
-# they are to be discarded from the queue if we are currently reporting
-# and there are more events later in the queue
-# eventPriority = {
-#   YELLOW_FLAG: 9,
-#   DNF: 8,
-#   COLLISION: 7,
-#   OVERTAKE: 6,
-#   FASTEST_LAP: 5,
-#   ENTERED_PIT: 4,
-#   SHORT_INTERVAL: 3,
-#   LONG_STINT: 2,
-#   LONG_PIT: 1,
-#   QUICK_PIT: 0
-# }
+simInfo = SimInfo()
 
 # Global variables
-lastUpdateTime = 0
-isCommentating = False
-driverCount = 32
-sectorCount = 0
-carInFocus = 0
+last_update_time = 0
+is_commentating = False
+driver_count = 32
+sector_count = 0
+car_in_focus = 0
 
-eventQueue = []
+event_queue = []
 
 stateCurrent = None
 statePrevious = None
@@ -91,23 +63,23 @@ def getDriverInfo(id):
 
 
 def acMain(ac_version):
-    global appWindow, driverCount, currentState, previousState
+    global appWindow, driver_count, currentState, previousState
 
-    appWindow = ac.newApp(appName)
-    ac.setTitle(appWindow, appName)
+    appWindow = ac.newApp(APP_NAME)
+    ac.setTitle(appWindow, APP_NAME)
     ac.setSize(appWindow, 200, 200)
 
     ac.addRenderCallback(appWindow, appGL)
 
     drivers = []
-    driverCount = ac.getCarsCount()
-    for id in range(driverCount):
+    driver_count = ac.getCarsCount()
+    for id in range(driver_count):
         drivers.append(getDriverInfo(id))
 
     previousState["drivers"] = drivers
     currentState["drivers"] = drivers
 
-    return appName
+    return APP_NAME
 
 
 def appGL(deltaT):
@@ -119,23 +91,23 @@ def eventPriority():
 
 
 def step():
-    global lastUpdateTime, currentState, previousState
-    lastUpdateTime = 0
+    global last_update_time, currentState, previousState
+    last_update_time = 0
     previousState = copy.deepcopy(currentState)
 
 
 def acUpdate(deltaT):
     global \
-        lastUpdateTime, \
-        eventQueue, \
-        driverCount, \
-        carInFocus, \
-        isCommentating, \
+        last_update_time, \
+        event_queue, \
+        driver_count, \
+        car_in_focus, \
+        is_commentating, \
         previousState, \
         currentState
 
-    lastUpdateTime += deltaT
-    if lastUpdateTime < 1:
+    last_update_time += deltaT
+    if last_update_time < 1:
         return
 
     ### Get current state ###
@@ -197,7 +169,7 @@ def acUpdate(deltaT):
                 "overtaker": currentState["drivers"][pos]["name"],
                 "overtaken": previousState["drivers"][pos]["name"],
             }
-            eventQueue.append(getEvent(OVERTAKE, [], params))
+            event_queue.append(getEvent(EventType.OVERTAKE, [], params))
             break
 
     # # Intervals
@@ -212,9 +184,9 @@ def acUpdate(deltaT):
 
     # Compare fastest lap
     if currentState["fastestLap"] != previousState["fastestLap"]:
-        eventQueue.append(
+        event_queue.append(
             getEvent(
-                FASTEST_LAP,
+                EventType.FASTEST_LAP,
                 [currentState["fastestLap"][1]],
                 {"lapTime": currentState["fastestLap"][0]},
             )
@@ -243,21 +215,21 @@ def acUpdate(deltaT):
     #     elif pitLength < 30:
     #       eventQueue.append(Event(QUICK_PIT, datetime.datetime.now(), [driverCurrent], { "pit_length": pitLength }, stateCurrent.raceMode))
 
-    if len(eventQueue) == 0:
+    if len(event_queue) == 0:
         # ac.console("{} -- No events".format(datetime.datetime.now()))
         step()
         return
 
-    if isCommentating:
+    if is_commentating:
         # use probability to determine if the next event in queue should be discarded
         pass
     else:
-        isCommentating = True
-        prompt = generatePrompt(eventQueue.pop())
+        is_commentating = True
+        prompt = generatePrompt(event_queue.pop())
         script = enhanceText(prompt)
         audio = textToSpeech(script)
         if audio:
-            isCommentating = False
+            is_commentating = False
 
     step()
 
@@ -277,20 +249,20 @@ def generatePrompt(event):
     #     for i, driver in enumerate(event.params["results"]):
     #       prompt += f"{driver} in {i+1}. "
     prompt = ""
-    if event["type"] == YELLOW_FLAG:
+    if event["type"] == EventType.YELLOW_FLAG:
         pass
-    elif event["type"] == DNF:
+    elif event["type"] == EventType.DNF:
         pass
     # elif event.type == COLLISION:
     #   prompt += f"{event['drivers'][0]} and {event['drivers'][1]} had a collision"
     #   pass
-    elif event["type"] == OVERTAKE:
+    elif event["type"] == EventType.OVERTAKE:
         prompt = "{} has overtaken {} and is now in position {}".format(
             event["params"]["overtaker"],
             event["params"]["overtaken"],
             event["params"]["position"],
         )
-    elif event["type"] == FASTEST_LAP:
+    elif event["type"] == EventType.FASTEST_LAP:
         prompt = "{} just set the fastest lap with a time of {}".format(
             event["drivers"][0]["name"], event["params"]["lapTime"]
         )
