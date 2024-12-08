@@ -4,8 +4,8 @@ import datetime
 import ac  # type: ignore
 import acsys  # type: ignore
 
-from models import Event, EventType
-from third_party.sim_info import SimInfo, sys
+from models import Event, EventType, RaceState
+from third_party.sim_info import SimInfo
 
 # Global constants
 APP_NAME = "YaboAI"
@@ -23,8 +23,8 @@ car_in_focus = 0
 
 event_queue = []
 
-currentState = {"drivers": [], "fastestLap": (sys.maxsize, "")}
-previousState = {"drivers": [], "fastestLap": (sys.maxsize, "")}
+currentState = RaceState()
+previousState = RaceState()
 
 
 def getDriverInfo(id):
@@ -156,7 +156,7 @@ def acUpdate(deltaT):
                 "overtaker": currentState["drivers"][pos]["name"],
                 "overtaken": previousState["drivers"][pos]["name"],
             }
-            event_queue.append(Event(EventType.OVERTAKE, [], params))
+            event_queue.append(Event(EventType.OVERTAKE, params))
             break
 
     # # Intervals
@@ -174,8 +174,10 @@ def acUpdate(deltaT):
         event_queue.append(
             Event(
                 EventType.FASTEST_LAP,
-                [currentState["fastestLap"][1]],
-                {"lapTime": currentState["fastestLap"][0]},
+                {
+                    "lapTime": currentState["fastestLap"][0],
+                    "driver": currentState["fastestLap"][1],
+                },
             )
         )
 
@@ -236,7 +238,7 @@ def generatePrompt(event):
     #     for i, driver in enumerate(event.params["results"]):
     #       prompt += f"{driver} in {i+1}. "
     prompt = ""
-    if event["type"] == EventType.YELLOW_FLAG:
+    if event["type"] == EventType.SAFETY_CAR:
         pass
     elif event["type"] == EventType.DNF:
         pass

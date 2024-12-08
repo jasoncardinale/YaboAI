@@ -1,4 +1,5 @@
 import datetime
+import sys
 from ctypes import c_int32
 from enum import Enum
 from typing import Any
@@ -102,23 +103,24 @@ class Driver:
         return events
 
 
-class Event:
+class RaceState:
     """
-    Event
+    State
+
+    Used to keep track and the current and previous race states
     """
 
-    def __init__(
-        self, event_type: "EventType", drivers: list[Driver], params: dict[str, Any]
-    ):
-        self.event_type = event_type
-        self.time = datetime.datetime.now()
-        self.drivers = drivers
-        self.params: dict[str, Any] = params
+    def __init__(self):
+        self.drivers: list[Driver] = []  # Ordered by position
+        self.fastestLap: tuple[float, str] = (sys.maxsize, "")
 
-        self.race_mode: c_int32 = SimInfo().graphics.session
+    def add_driver(self, driver: Driver):
+        self.drivers.append(driver)
+        self.drivers.sort(key=lambda driver: driver.distance)
 
-    def __str__(self):
-        return f"{self.type} - {self.time} - {self.drivers} - {self.params} - {self.race_mode}"
+    def update(self):
+        for driver in self.drivers:
+            driver.update()
 
 
 class EventType(Enum):
@@ -132,7 +134,7 @@ class EventType(Enum):
     """
 
     # Race has stopped due to an incident. Racer's line up to restart
-    YELLOW_FLAG = "yellow_flag"
+    SAFETY_CAR = "safety_car"
     # Driver A's engine died/(Did not finish)
     DNF = "dnf"
     # Driver A and Driver B collide
@@ -147,9 +149,27 @@ class EventType(Enum):
     SHORT_INTERVAL = "short_interval"
     # Driver has been on the same set of tires for over 15 laps
     LONG_STINT = "long_stint"
-    # Driver has been in the pit for over 30 seconds
+    # Driver has been in the pit for over 60 seconds
     LONG_PIT = "long_pit"
-    # Driver was in the pits for less than 15 seconds
+    # Driver was in the pits for less than 30 seconds
     QUICK_PIT = "quick_pit"
     # Driver A is less than 1 second behind Driver B
     DRS_RANGE = "drs_range"
+
+
+class Event:
+    """
+    Event
+
+    Contains all relevant information for a particular event
+    """
+
+    def __init__(self, event_type: EventType, params: dict[str, Any]):
+        self.event_type = event_type
+        self.time = datetime.datetime.now()
+        self.params = params
+
+        self.race_mode: c_int32 = SimInfo().graphics.session
+
+    def __str__(self):
+        return f"{self.type} - {self.time} - {self.drivers} - {self.params} - {self.race_mode}"
