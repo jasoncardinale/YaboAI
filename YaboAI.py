@@ -23,9 +23,6 @@ car_in_focus = 0
 
 event_queue = []
 
-stateCurrent = None
-statePrevious = None
-
 currentState = {"drivers": [], "fastestLap": (sys.maxsize, "")}
 previousState = {"drivers": [], "fastestLap": (sys.maxsize, "")}
 
