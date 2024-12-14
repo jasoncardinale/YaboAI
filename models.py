@@ -47,8 +47,8 @@ class Driver:
             events.append(
                 Event(
                     EventType.DNF,
-                    [self],
                     {
+                        "driver": self.name,
                         "reason": "Disconnected",
                     },
                 )
@@ -62,8 +62,8 @@ class Driver:
             events.append(
                 Event(
                     EventType.ENTERED_PIT,
-                    [self],
                     {
+                        "driver": self.name,
                         "lap_count": self.lap_count,
                         "last_lap": self.last_lap,
                         "compound": self.compound,
@@ -72,12 +72,12 @@ class Driver:
             )
         elif self.in_pit and not in_pit:
             duration = datetime.datetime.now() - self.latest_pit_start
-            if duration.total_seconds() > 30:
+            if duration.total_seconds() > 60:
                 events.append(
                     Event(
                         EventType.LONG_PIT,
-                        [self],
                         {
+                            "driver": self.name,
                             "lap_count": self.lap_count,
                             "last_lap": self.last_lap,
                             "compound": self.compound,
@@ -85,12 +85,12 @@ class Driver:
                         },
                     )
                 )
-            elif duration.total_seconds() < 15:
+            elif duration.total_seconds() < 30:
                 events.append(
                     Event(
                         EventType.QUICK_PIT,
-                        [self],
                         {
+                            "driver": self.name,
                             "lap_count": self.lap_count,
                             "last_lap": self.last_lap,
                             "compound": self.compound,
