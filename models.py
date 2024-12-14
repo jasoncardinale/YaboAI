@@ -10,6 +10,62 @@ import acsys  # type: ignore
 from third_party.sim_info import SimInfo
 
 
+class EventType(Enum):
+    """
+    Event Types
+
+    We don't want to be reporting events that happened too long ago
+    so this will apply weights to events according to how likely
+    they are to be discarded from the queue if we are currently reporting
+    and there are more events later in the queue
+    """
+
+    # Race has stopped due to an incident. Racer's line up to restart
+    START_SAFETY_CAR = "safety_car"
+    # Race has restarted after a safety car
+    END_SAFETY_CAR = "end_safety_car"
+    # Driver A's engine died/(Did not finish)
+    DNF = "dnf"
+    # Driver A and Driver B collide
+    COLLISION = "collision"
+    # Driver A passes Driver B
+    OVERTAKE = "overtake"
+    # Driver sets the fastest lap
+    FASTEST_LAP = "fastest_lap"
+    # Driver enters the pit
+    ENTERED_PIT = "entered_pit"
+    # Driver A is 1 to 3 second behind Driver B
+    SHORT_INTERVAL = "short_interval"
+    # Driver has been on the same set of tires for over 15 laps
+    LONG_STINT = "long_stint"
+    # Driver has been in the pit for over 60 seconds
+    LONG_PIT = "long_pit"
+    # Driver was in the pits for less than 30 seconds
+    QUICK_PIT = "quick_pit"
+    # Driver has set their best lap
+    BEST_LAP = "best_lap"
+    # Driver A is less than 1 second behind Driver B
+    DRS_RANGE = "drs_range"
+
+
+class Event:
+    """
+    Event
+
+    Contains all relevant information for a particular event
+    """
+
+    def __init__(self, event_type: EventType, params: dict[str, Any]):
+        self.event_type = event_type
+        self.time = datetime.datetime.now()
+        self.params = params
+
+        self.race_mode: c_int32 = SimInfo().graphics.session
+
+    def __str__(self):
+        return f"{self.type} - {self.time} - {self.params} - {self.race_mode}"
+
+
 class Driver:
     """
     Driver
@@ -31,7 +87,7 @@ class Driver:
     def __str__(self) -> str:
         return f"{self.id} - {self.name}"
 
-    def update(self) -> list["Event"]:
+    def update(self) -> list[Event]:
         events: list[Event] = []
 
         self.last_lap = ac.getCarState(self.id, acsys.CS.LastLap)
@@ -143,66 +199,28 @@ class RaceState:
 
     def __init__(self):
         self.drivers: list[Driver] = []  # Ordered by position
-        self.fastestLap: tuple[float, str] = (sys.maxsize, "")
+        self.fastest_lap: tuple[float, str] = (sys.maxsize, "")
+        self.safety_car: bool = False
 
     def add_driver(self, driver: Driver):
         self.drivers.append(driver)
         self.drivers.sort(key=lambda driver: driver.distance)
 
-    def update(self):
+    def update(self) -> list[Event]:
+        events: list[Event] = []
+
+        avg_speed = 0
         for driver in self.drivers:
             driver.update()
+            avg_speed += driver.speed_kmh
+        avg_speed /= len(self.drivers)
 
+        current_lap = self.drivers[0].lap_count
 
-class EventType(Enum):
-    """
-    Event Types
-
-    We don't want to be reporting events that happened too long ago
-    so this will apply weights to events according to how likely
-    they are to be discarded from the queue if we are currently reporting
-    and there are more events later in the queue
-    """
-
-    # Race has stopped due to an incident. Racer's line up to restart
-    SAFETY_CAR = "safety_car"
-    # Driver A's engine died/(Did not finish)
-    DNF = "dnf"
-    # Driver A and Driver B collide
-    COLLISION = "collision"
-    # Driver A passes Driver B
-    OVERTAKE = "overtake"
-    # Driver sets the fastest lap
-    FASTEST_LAP = "fastest_lap"
-    # Driver enters the pit
-    ENTERED_PIT = "entered_pit"
-    # Driver A is 1 to 3 second behind Driver B
-    SHORT_INTERVAL = "short_interval"
-    # Driver has been on the same set of tires for over 15 laps
-    LONG_STINT = "long_stint"
-    # Driver has been in the pit for over 60 seconds
-    LONG_PIT = "long_pit"
-    # Driver was in the pits for less than 30 seconds
-    QUICK_PIT = "quick_pit"
-    # Driver has set their best lap
-    BEST_LAP = "best_lap"
-    # Driver A is less than 1 second behind Driver B
-    DRS_RANGE = "drs_range"
-
-
-class Event:
-    """
-    Event
-
-    Contains all relevant information for a particular event
-    """
-
-    def __init__(self, event_type: EventType, params: dict[str, Any]):
-        self.event_type = event_type
-        self.time = datetime.datetime.now()
-        self.params = params
-
-        self.race_mode: c_int32 = SimInfo().graphics.session
-
-    def __str__(self):
-        return f"{self.type} - {self.time} - {self.drivers} - {self.params} - {self.race_mode}"
+        # Check for safety car
+        if not self.safety_car and current_lap > 1 and avg_speed < 30:
+            self.safety_car = True
+            events.append(Event(EventType.SAFETY_CAR, {"lap_count": current_lap}))
+        elif self.safety_car and avg_speed > 100:
+            self.safety_car = False
+            events.append((Event(EventType.END_SAFETY_CAR, {"lap_count": current_lap})))
