@@ -192,7 +192,7 @@ class Driver:
 
 class RaceState:
     """
-    State
+    RaceState
 
     Used to keep track and the current and previous race states
     """
@@ -215,6 +215,24 @@ class RaceState:
             avg_speed += driver.speed_kmh
         avg_speed /= len(self.drivers)
 
+        # TODO: Bring over the calculateInterval function from the old code
+        sorted_drivers = sorted(
+            self.drivers, key=lambda driver: driver.distance, reverse=True
+        )
+        for i in range(len(self.drivers) - 1):
+            if sorted_drivers[i].distance - sorted_drivers[i + 1].distance < 1:
+                events.append(
+                    Event(
+                        EventType.SHORT_INTERVAL,
+                        {
+                            "driver_a": sorted_drivers[i].name,
+                            "driver_b": sorted_drivers[i + 1].name,
+                            "lap_count": sorted_drivers[i].lap_count,
+                        },
+                    )
+                )
+        self.drivers = sorted_drivers
+
         current_lap = self.drivers[0].lap_count
 
         # Check for safety car
@@ -230,6 +248,7 @@ class RaceState:
             if driver.best_lap < self.fastest_lap:
                 self.fastest_lap = driver.best_lap
                 if current_lap > 5:
+                    # Don't report fastest lap on the first few laps
                     events.append(
                         Event(
                             EventType.FASTEST_LAP,

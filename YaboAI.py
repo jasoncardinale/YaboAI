@@ -94,7 +94,7 @@ def acUpdate(deltaT):
         currentState
 
     last_update_time += deltaT
-    if last_update_time < 1:
+    if last_update_time < 5:
         return
 
     ### Get current state ###
