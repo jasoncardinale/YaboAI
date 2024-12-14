@@ -42,6 +42,7 @@ class Driver:
         )
         self.compound = ac.getCarTyreCompound(self.id)
 
+        # Check if the driver has left the game (DNF)
         connected = ac.isConnected(self.id)
         if self.connected and not connected:
             events.append(
@@ -55,6 +56,7 @@ class Driver:
             )
         self.connected = connected
 
+        # Track the duration of the driver's pitstop
         in_pit = ac.isCarInPitline(self.id) or ac.isCarInPit(self.id)
         if not self.in_pit and in_pit:
             self.latest_pit_start = datetime.datetime.now()
@@ -99,6 +101,14 @@ class Driver:
                     )
                 )
         self.in_pit = in_pit
+
+        # Check if the driver has set their best lap
+        if self.last_lap == self.best_lap:
+            events.append(
+                Event(
+                    EventType.BEST_LAP, {"driver": self.name, "lap_time": self.best_lap}
+                )
+            )
 
         return events
 
@@ -153,6 +163,8 @@ class EventType(Enum):
     LONG_PIT = "long_pit"
     # Driver was in the pits for less than 30 seconds
     QUICK_PIT = "quick_pit"
+    # Driver has set their best lap
+    BEST_LAP = "best_lap"
     # Driver A is less than 1 second behind Driver B
     DRS_RANGE = "drs_range"
 
