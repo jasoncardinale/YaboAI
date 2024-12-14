@@ -23,6 +23,8 @@ class Driver:
         self.nation = ac.getDriverNationCode(id)
         self.car_name = ac.getCarName(id)
         self.pit_stops = 0
+        self.tire_age = 0
+        self.last_compound_change_lap = 0
 
         self.update()
 
@@ -37,10 +39,7 @@ class Driver:
         self.lap_count = ac.getCarState(self.id, acsys.CS.LapCount)
         self.speed_kmh = ac.getCarState(self.id, acsys.CS.SpeedKMH)
         self.lap_distance = ac.getCarState(self.id, acsys.CS.NormalizedSplinePosition)
-        self.distance = ac.getCarState(self.id, acsys.CS.LapCount) + ac.getCarState(
-            self.id, acsys.CS.NormalizedSplinePosition
-        )
-        self.compound = ac.getCarTyreCompound(self.id)
+        self.distance = self.lap_count + self.lap_distance
 
         # Check if the driver has left the game (DNF)
         connected = ac.isConnected(self.id)
@@ -109,6 +108,28 @@ class Driver:
                     EventType.BEST_LAP, {"driver": self.name, "lap_time": self.best_lap}
                 )
             )
+
+        # Check tire age
+        compound = ac.getCarTyreCompound(self.id)
+        if compound != self.compound:
+            self.tire_age = 0
+            self.last_compound_change_lap = 0
+        else:
+            self.tire_age = self.lap_count - self.last_compound_change_lap
+            if self.tire_age > 15:
+                events.append(
+                    Event(
+                        EventType.LONG_STINT,
+                        {
+                            "driver": self.name,
+                            "lap_count": self.lap_count,
+                            "tire_age": self.tire_age,
+                            "last_lap": self.last_lap,
+                            "compound": self.compound,
+                        },
+                    )
+                )
+        self.compound = compound
 
         return events
 
