@@ -199,7 +199,7 @@ class RaceState:
 
     def __init__(self):
         self.drivers: list[Driver] = []  # Ordered by position
-        self.fastest_lap: tuple[float, str] = (sys.maxsize, "")
+        self.fastest_lap: float = sys.float_info.max
         self.safety_car: bool = False
 
     def add_driver(self, driver: Driver):
@@ -224,3 +224,19 @@ class RaceState:
         elif self.safety_car and avg_speed > 100:
             self.safety_car = False
             events.append((Event(EventType.END_SAFETY_CAR, {"lap_count": current_lap})))
+
+        # Check for fastest lap
+        for driver in self.drivers:
+            if driver.best_lap < self.fastest_lap:
+                self.fastest_lap = driver.best_lap
+                if current_lap > 5:
+                    events.append(
+                        Event(
+                            EventType.FASTEST_LAP,
+                            {
+                                "driver": driver.name,
+                                "lap_time": driver.best_lap,
+                                "lap_count": current_lap,
+                            },
+                        )
+                    )
