@@ -226,6 +226,8 @@ class RaceState:
         sorted_drivers = sorted(
             self.drivers, key=lambda driver: driver.distance, reverse=True
         )
+
+        # Check if cars are close to each other
         for i in range(len(self.drivers) - 1):
             interval = _calculateTimeInterval(sorted_drivers[i], sorted_drivers[i + 1])
             # TODO: definitely need to prevent repeat event reporting here
