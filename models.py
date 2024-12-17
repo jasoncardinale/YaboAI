@@ -27,15 +27,15 @@ class EventType(Enum):
     # Driver A's engine died/(Did not finish)
     DNF = "dnf"
     # Driver A and Driver B collide
-    COLLISION = "collision"
+    COLLISION = "collision"  # TODO
     # Driver A passes Driver B
-    OVERTAKE = "overtake"
+    OVERTAKE = "overtake"  # TODO
     # Driver sets the fastest lap
     FASTEST_LAP = "fastest_lap"
     # Driver enters the pit
     ENTERED_PIT = "entered_pit"
     # Driver A is 1 to 3 second behind Driver B
-    SHORT_INTERVAL = "short_interval"
+    SHORT_INTERVAL = "short_interval"  # TODO
     # Driver has been on the same set of tires for over 15 laps
     LONG_STINT = "long_stint"
     # Driver has been in the pit for over 60 seconds
@@ -45,7 +45,7 @@ class EventType(Enum):
     # Driver has set their best lap
     BEST_LAP = "best_lap"
     # Driver A is less than 1 second behind Driver B
-    DRS_RANGE = "drs_range"
+    DRS_RANGE = "drs_range"  # TODO
 
 
 class Event:
@@ -73,11 +73,15 @@ class Driver:
     Contains all race relevant information for a particular driver
     """
 
+    # TODO: Need to keep track of events that have already been reported
+    # probably using a dictionary with the event type as the key and the last lap it was reported on
+    # as the value. This way we can make sure the reporting on similar events is spaced out
+
     def __init__(self, id: int):
         self.id = id
-        self.name = ac.getDriverName(id)
-        self.nation = ac.getDriverNationCode(id)
-        self.car_name = ac.getCarName(id)
+        self.name = str(ac.getDriverName(id))
+        self.nation = str(ac.getDriverNationCode(id))
+        self.car_name = str(ac.getCarName(id))
         self.pit_stops = 0
         self.tire_age = 0
         self.last_compound_change_lap = 0
@@ -112,7 +116,7 @@ class Driver:
         self.connected = connected
 
         # Track the duration of the driver's pitstop
-        in_pit = ac.isCarInPitline(self.id) or ac.isCarInPit(self.id)
+        in_pit = bool(ac.isCarInPitline(self.id) or ac.isCarInPit(self.id))
         if not self.in_pit and in_pit:
             self.latest_pit_start = datetime.datetime.now()
             self.pit_stops += 1
@@ -215,19 +219,35 @@ class RaceState:
             avg_speed += driver.speed_kmh
         avg_speed /= len(self.drivers)
 
-        # TODO: Bring over the calculateInterval function from the old code
+        def _calculateTimeInterval(driverAhead: Driver, driverBehind: Driver) -> float:
+            deltaD = abs(driverAhead.distance - driverBehind.distance)
+            return driverAhead.last_lap - (driverBehind.last_lap * (1 - deltaD))
+
         sorted_drivers = sorted(
             self.drivers, key=lambda driver: driver.distance, reverse=True
         )
         for i in range(len(self.drivers) - 1):
-            if sorted_drivers[i].distance - sorted_drivers[i + 1].distance < 1:
+            interval = _calculateTimeInterval(sorted_drivers[i], sorted_drivers[i + 1])
+            # TODO: definitely need to prevent repeat event reporting here
+            if interval < 1:
+                events.append(
+                    Event(
+                        EventType.DRS_RANGE,
+                        {
+                            "driver_a": sorted_drivers[i].name,
+                            "driver_b": sorted_drivers[i + 1].name,
+                            "interval": interval,
+                        },
+                    )
+                )
+            elif interval < 3:
                 events.append(
                     Event(
                         EventType.SHORT_INTERVAL,
                         {
                             "driver_a": sorted_drivers[i].name,
                             "driver_b": sorted_drivers[i + 1].name,
-                            "lap_count": sorted_drivers[i].lap_count,
+                            "interval": interval,
                         },
                     )
                 )
