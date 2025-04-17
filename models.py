@@ -56,7 +56,7 @@ class Event:
     """
 
     def __init__(self, event_type: EventType, params: dict[str, Any]):
-        self.event_type = event_type
+        self.type = event_type
         self.time = datetime.datetime.now()
         self.params = params
 
@@ -260,7 +260,7 @@ class RaceState:
         # Check for safety car
         if not self.safety_car and current_lap > 1 and avg_speed < 30:
             self.safety_car = True
-            events.append(Event(EventType.SAFETY_CAR, {"lap_count": current_lap}))
+            events.append(Event(EventType.START_SAFETY_CAR, {"lap_count": current_lap}))
         elif self.safety_car and avg_speed > 100:
             self.safety_car = False
             events.append((Event(EventType.END_SAFETY_CAR, {"lap_count": current_lap})))
@@ -281,3 +281,5 @@ class RaceState:
                             },
                         )
                     )
+
+        return events
