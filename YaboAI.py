@@ -101,33 +101,29 @@ def generatePrompt(event: Event):
     prompt = ""
     match event.type:
         case EventType.START_SAFETY_CAR:
-            pass
+            prompt += f"{1}"
         case EventType.END_SAFETY_CAR:
-            pass
+            prompt += f"{1}"
         case EventType.DNF:
-            pass
+            prompt += f"{1}"
         case EventType.COLLISION:
-            pass
+            prompt += f"{1}"
         case EventType.BEST_LAP:
-            pass
+            prompt += f"{1}"
         case EventType.FASTEST_LAP:
-            pass
+            prompt += f"{1}"
         case EventType.ENTERED_PIT:
-            pass
+            prompt += f'{event.params["driver"]} has entered the pit.'
         case EventType.QUICK_PIT:
-            pass
+            prompt += f"{1}"
         case EventType.LONG_PIT:
-            pass
+            prompt += f"{1}"
         case EventType.SHORT_INTERVAL:
-            pass
+            prompt += f"{1}"
         case EventType.DRS_RANGE:
-            pass
+            prompt += f"{1}"
         case EventType.OVERTAKE:
-            prompt = "{} has overtaken {} and is now in position {}".format(
-                event.params["overtaker"],
-                event.params["overtaken"],
-                event.params["position"],
-            )
+            prompt = f"{event.params['driver_a']} has overtaken {event.params['driver_b']} and is now in position {event.params['position']}"
         case EventType.LONG_STINT:
             pass
 
