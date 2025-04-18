@@ -244,6 +244,7 @@ class RaceState:
                         {
                             "driver_a": sorted_drivers[i].name,
                             "driver_b": sorted_drivers[i + 1].name,
+                            "position": i + 1,
                         },
                     )
                 )
