@@ -84,8 +84,11 @@ def acUpdate(deltaT):
         pass
     else:
         is_commentating = True
-        prompt = generatePrompt(event_queue.pop())
-        script = chat_completion(prompt)
+        # TODO: focus camera on event.driver_id
+        prompts: list[str] = []
+        while event := event_queue.pop():
+            prompts.append(generatePrompt(event))
+        script = chat_completion(("\n".join(prompts)))
         audio = textToSpeech(script)
         if audio:
             is_commentating = False

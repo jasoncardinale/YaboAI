@@ -231,8 +231,23 @@ class RaceState:
             self.drivers, key=lambda driver: driver.distance, reverse=True
         )
 
-        # Check if cars are close to each other
-        for i in range(len(self.drivers) - 1):
+        # Check for overtakes and short intervals
+        for i in range(len(sorted_drivers) - 2):
+            if (
+                sorted_drivers[i].id != self.drivers[i].id
+                and sorted_drivers[i + 1].id == self.drivers[i].id
+            ):
+                events.append(
+                    Event(
+                        EventType.OVERTAKE,
+                        sorted_drivers[i].id,
+                        {
+                            "driver_a": sorted_drivers[i].name,
+                            "driver_b": sorted_drivers[i + 1].name,
+                        },
+                    )
+                )
+
             interval = self._calculateTimeInterval(
                 sorted_drivers[i], sorted_drivers[i + 1]
             )
