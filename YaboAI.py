@@ -1,4 +1,5 @@
 import datetime
+import random
 
 import ac  # type: ignore
 
@@ -62,6 +63,7 @@ def acUpdate(deltaT):
     event_queue.extend(current_state.update())
 
     if len(event_queue) == 0:
+        camera_control(current_state)
         last_update_time = 0
         return
 
@@ -78,7 +80,7 @@ def acUpdate(deltaT):
     else:
         is_commentating = True
         event = event_queue.pop()
-        camera_control(event, current_state)
+        camera_control(current_state, event)
         prompt = generate_prompt(event)
         script = chat_completion(prompt)
         audio = text_to_speech(script)
@@ -88,32 +90,34 @@ def acUpdate(deltaT):
     last_update_time = 0
 
 
-def camera_control(event: Event, state: RaceState):
+def camera_control(state: RaceState, event: Event | None = None):
+    if not event:
+        ac.setCameraMode("Random")
+        return
+
     success = ac.focusCar(event.driver_id)
     if not success:
-        ac.focusCar()
+        ac.focusCar(state.drivers[random.randint(1, len(state.drivers) - 1)])
 
     match event.type:
-        case EventType.START_SAFETY_CAR:
-            pass
-        case EventType.END_SAFETY_CAR:
-            pass
+        case EventType.START_SAFETY_CAR, EventType.END_SAFETY_CAR:
+            ac.setCameraMode("Helicopter")
         case EventType.DNF:
-            pass
+            ac.setCameraMode("Random")
         case EventType.COLLISION:
-            pass
+            ac.setCameraMode("Random")
         case EventType.BEST_LAP:
-            pass
+            ac.setCameraMode("Random")
         case EventType.FASTEST_LAP:
-            pass
+            ac.setCameraMode("Random")
         case EventType.ENTERED_PIT:
-            pass
+            ac.setCameraMode("Random")
         case EventType.QUICK_PIT:
-            pass
+            ac.setCameraMode("Random")
         case EventType.LONG_PIT:
-            pass
+            ac.setCameraMode("Random")
         case EventType.SHORT_INTERVAL, EventType.DRS_RANGE:
-            pass
+            ac.setCameraMode("Cockpit")
         case EventType.OVERTAKE:
             pass
         case EventType.LONG_STINT:
