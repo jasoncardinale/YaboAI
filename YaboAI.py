@@ -80,23 +80,59 @@ def acUpdate(deltaT):
         return
 
     if is_commentating:
-        # use probability to determine if the next event in queue should be discarded
-        pass
+        event = event_queue[0]
+        duration = datetime.datetime.now() - event.time
+        if duration.total_seconds() > 30:
+            if event.type in [
+                EventType.BEST_LAP,
+                EventType.SHORT_INTERVAL,
+                EventType.ENTERED_PIT,
+            ]:
+                event_queue.pop()
     else:
         is_commentating = True
-        # TODO: focus camera on event.driver_id
-        prompts: list[str] = []
-        while event := event_queue.pop():
-            prompts.append(generatePrompt(event))
-        script = chat_completion(("\n".join(prompts)))
-        audio = textToSpeech(script)
+        event = event_queue.pop()
+        camera_control(event)
+        prompt = generate_prompt(event)
+        script = chat_completion(prompt)
+        audio = text_to_speech(script)
         if audio:
             is_commentating = False
 
     step()
 
 
-def generatePrompt(event: Event):
+def camera_control(event: Event):
+    ac.focusCar(event.driver_id)
+
+    match event.type:
+        case EventType.START_SAFETY_CAR:
+            pass
+        case EventType.END_SAFETY_CAR:
+            pass
+        case EventType.DNF:
+            pass
+        case EventType.COLLISION:
+            pass
+        case EventType.BEST_LAP:
+            pass
+        case EventType.FASTEST_LAP:
+            pass
+        case EventType.ENTERED_PIT:
+            pass
+        case EventType.QUICK_PIT:
+            pass
+        case EventType.LONG_PIT:
+            pass
+        case EventType.SHORT_INTERVAL, EventType.DRS_RANGE:
+            pass
+        case EventType.OVERTAKE:
+            pass
+        case EventType.LONG_STINT:
+            pass
+
+
+def generate_prompt(event: Event):
     ac.console("{} -- event type: {}".format(datetime.datetime.now(), event.type))
     prompt = ""
     match event.type:
@@ -171,6 +207,6 @@ def generatePrompt(event: Event):
     return prompt
 
 
-def textToSpeech(text):
+def text_to_speech(text):
     # time.sleep(10)
     return True

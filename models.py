@@ -253,7 +253,7 @@ class RaceState:
                 events.append(
                     Event(
                         EventType.DRS_RANGE,
-                        sorted_drivers[i].id,
+                        sorted_drivers[i + 1].id,
                         {
                             "driver_a": sorted_drivers[i].name,
                             "driver_b": sorted_drivers[i + 1].name,
@@ -265,7 +265,7 @@ class RaceState:
                 events.append(
                     Event(
                         EventType.SHORT_INTERVAL,
-                        sorted_drivers[i].id,
+                        sorted_drivers[i + 1].id,
                         {
                             "driver_a": sorted_drivers[i].name,
                             "driver_b": sorted_drivers[i + 1].name,
