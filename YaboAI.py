@@ -72,6 +72,8 @@ def acUpdate(deltaT):
     if last_update_time < 5:
         return
 
+    currentState.update()
+
     if len(event_queue) == 0:
         # ac.console("{} -- No events".format(datetime.datetime.now()))
         step()

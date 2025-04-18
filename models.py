@@ -55,8 +55,9 @@ class Event:
     Contains all relevant information for a particular event
     """
 
-    def __init__(self, event_type: EventType, params: dict[str, Any]):
+    def __init__(self, event_type: EventType, driver_id: int, params: dict[str, Any]):
         self.type = event_type
+        self.driver_id = driver_id
         self.time = datetime.datetime.now()
         self.params = params
 
@@ -107,6 +108,7 @@ class Driver:
             events.append(
                 Event(
                     EventType.DNF,
+                    self.id,
                     {
                         "driver": self.name,
                         "reason": "Disconnected",
@@ -123,6 +125,7 @@ class Driver:
             events.append(
                 Event(
                     EventType.ENTERED_PIT,
+                    self.id,
                     {
                         "driver": self.name,
                         "lap_count": self.lap_count,
@@ -137,6 +140,7 @@ class Driver:
                 events.append(
                     Event(
                         EventType.LONG_PIT,
+                        self.id,
                         {
                             "driver": self.name,
                             "lap_count": self.lap_count,
@@ -150,6 +154,7 @@ class Driver:
                 events.append(
                     Event(
                         EventType.QUICK_PIT,
+                        self.id,
                         {
                             "driver": self.name,
                             "lap_count": self.lap_count,
@@ -165,7 +170,9 @@ class Driver:
         if self.last_lap == self.best_lap:
             events.append(
                 Event(
-                    EventType.BEST_LAP, {"driver": self.name, "lap_time": self.best_lap}
+                    EventType.BEST_LAP,
+                    self.id,
+                    {"driver": self.name, "lap_time": self.best_lap},
                 )
             )
 
@@ -180,6 +187,7 @@ class Driver:
                 events.append(
                     Event(
                         EventType.LONG_STINT,
+                        self.id,
                         {
                             "driver": self.name,
                             "lap_count": self.lap_count,
@@ -215,7 +223,7 @@ class RaceState:
 
         avg_speed = 0
         for driver in self.drivers:
-            driver.update()
+            events.extend(driver.update())
             avg_speed += driver.speed_kmh
         avg_speed /= len(self.drivers)
 
@@ -235,6 +243,7 @@ class RaceState:
                 events.append(
                     Event(
                         EventType.DRS_RANGE,
+                        sorted_drivers[i].id,
                         {
                             "driver_a": sorted_drivers[i].name,
                             "driver_b": sorted_drivers[i + 1].name,
@@ -246,6 +255,7 @@ class RaceState:
                 events.append(
                     Event(
                         EventType.SHORT_INTERVAL,
+                        sorted_drivers[i].id,
                         {
                             "driver_a": sorted_drivers[i].name,
                             "driver_b": sorted_drivers[i + 1].name,
@@ -260,10 +270,24 @@ class RaceState:
         # Check for safety car
         if not self.safety_car and current_lap > 1 and avg_speed < 30:
             self.safety_car = True
-            events.append(Event(EventType.START_SAFETY_CAR, {"lap_count": current_lap}))
-        elif self.safety_car and avg_speed > 100:
+            events.append(
+                Event(
+                    EventType.START_SAFETY_CAR,
+                    self.drivers[0].id,
+                    {"lap_count": current_lap},
+                )
+            )
+        elif self.safety_car and avg_speed > 160:
             self.safety_car = False
-            events.append((Event(EventType.END_SAFETY_CAR, {"lap_count": current_lap})))
+            events.append(
+                (
+                    Event(
+                        EventType.END_SAFETY_CAR,
+                        self.drivers[0].id,
+                        {"lap_count": current_lap},
+                    )
+                )
+            )
 
         # Check for fastest lap
         for driver in self.drivers:
@@ -274,6 +298,7 @@ class RaceState:
                     events.append(
                         Event(
                             EventType.FASTEST_LAP,
+                            driver.id,
                             {
                                 "driver": driver.name,
                                 "lap_time": driver.best_lap,
