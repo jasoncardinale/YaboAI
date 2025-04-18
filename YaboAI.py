@@ -113,7 +113,12 @@ def generatePrompt(event: Event):
         case EventType.FASTEST_LAP:
             prompt += f"{1}"
         case EventType.ENTERED_PIT:
-            prompt += f'{event.params["driver"]} has entered the pit.'
+            prompt += "{} has entered the pit on lap {}. They completed their last lap with a time of {} on the {} compound tire.".format(
+                event.params["driver"],
+                event.params["lap_count"],
+                event.params["last_lap"],
+                event.params["compound"],
+            )
         case EventType.QUICK_PIT:
             prompt += f"{1}"
         case EventType.LONG_PIT:
@@ -123,12 +128,10 @@ def generatePrompt(event: Event):
         case EventType.DRS_RANGE:
             prompt += f"{1}"
         case EventType.OVERTAKE:
-            prompt = f"{event.params['driver_a']} has overtaken {event.params['driver_b']} and is now in position {event.params['position']}"
+            prompt = f'{event.params["driver_a"]} has overtaken {event.params["driver_b"]} and is now in position {event.params["position"]}'
         case EventType.LONG_STINT:
             pass
 
-        # elif event.type == ENTERED_PIT:
-        #   prompt += f'{event.drivers[0].name} has entered the pit. '
         # elif event.type == SHORT_INTERVAL:
         #   prompt += f'{event.drivers[0].name} is only {event.params["interval"]}'
         #   pass
