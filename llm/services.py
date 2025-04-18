@@ -7,7 +7,7 @@ def chat_completion(prompt: str) -> str | None:
     headers = {"Content-type": "application/json"}
     payload = json.dumps(
         {
-            "model": "llama3.1:8b",
+            "model": "gemma3:4b",
             "prompt": prompt,
             "stream": False,
         }

@@ -2,9 +2,8 @@ import copy
 import datetime
 
 import ac  # type: ignore
-import acsys  # type: ignore
 
-from models import Event, EventType, RaceState
+from models import Driver, EventType, RaceState
 from third_party.sim_info import SimInfo
 
 # Global constants
@@ -27,28 +26,6 @@ currentState = RaceState()
 previousState = RaceState()
 
 
-def getDriverInfo(id):
-    return {
-        "id": id,
-        "name": ac.getDriverName(id),
-        "nation": ac.getDriverNationCode(id),
-        "carName": ac.getCarName(id),
-        "connected": ac.isConnected(id),
-        "lastLap": ac.getCarState(id, acsys.CS.LastLap),
-        "lapCount": ac.getCarState(id, acsys.CS.LapCount),
-        "speedKMH": ac.getCarState(id, acsys.CS.SpeedKMH),
-        "lapDistance": ac.getCarState(id, acsys.CS.NormalizedSplinePosition),
-        "distance": ac.getCarState(id, acsys.CS.LapCount)
-        + ac.getCarState(id, acsys.CS.NormalizedSplinePosition),
-        "compound": ac.getCarTyreCompound(id),
-        "inPit": ac.isCarInPitline(id) or ac.isCarInPit(id),
-        "bestLap": ac.getCarState(id, acsys.CS.BestLap),
-        "pitStops": 0,
-        "lastPitStart": datetime.datetime.now(),
-        "lastPitEnd": datetime.datetime.now(),
-    }
-
-
 def acMain(ac_version):
     global appWindow, driver_count, currentState, previousState
 
@@ -58,13 +35,11 @@ def acMain(ac_version):
 
     ac.addRenderCallback(appWindow, appGL)
 
-    drivers = []
     driver_count = ac.getCarsCount()
     for id in range(driver_count):
-        drivers.append(getDriverInfo(id))
-
-    previousState["drivers"] = drivers
-    currentState["drivers"] = drivers
+        driver = Driver(id)
+        previousState.add_driver(driver)
+        currentState.add_driver(driver)
 
     return APP_NAME
 
@@ -96,113 +71,6 @@ def acUpdate(deltaT):
     last_update_time += deltaT
     if last_update_time < 5:
         return
-
-    ### Get current state ###
-    for pos in range(len(currentState["drivers"])):
-        updatedDriver = getDriverInfo(currentState["drivers"][pos]["id"])
-        currentState["drivers"][pos] = updatedDriver
-        # ac.console("time: {}".format(updatedDriver["bestLap"]))
-        if (
-            updatedDriver["bestLap"] > 0
-            and updatedDriver["bestLap"] < currentState["fastestLap"][0]
-        ):
-            currentState["fastestLap"] = (updatedDriver["bestLap"], updatedDriver)
-            # ac.console("fastest: {}".format(currentState["fastestLap"][0]))
-    # if currentState["fastestLap"][0] < previousState["fastestLap"][0]:
-    # ac.console("{} just set the fastest lap with a time of {}".format(currentState["fastestLap"][1], currentState["fastestLap"][0]))
-    # Update drivers/Fastest lap
-    # ac.console("=====================")
-    # for pos in range(len(currentState["drivers"])):
-    #   ac.console(driver["name"])
-    #   currentState["drivers"][driver["id"]] = getDriverInfo(driver["id"]).copy()
-    #   if currentState["drivers"][driver["id"]]["bestLap"] < previousState["fastestLap"][0]:
-    #     currentState["fastestLap"] = (currentState["drivers"][driver["id"]]["bestLap"], currentState["drivers"][driver["id"]])
-    # ac.console("=====================")
-
-    # Standings
-    if simInfo.graphics.session == 2:
-        # ac.console(lastUpdateTime)
-        currentState["drivers"].sort(
-            key=lambda driver: driver["distance"], reverse=True
-        )
-        # ac.console("=====================")
-        # for driver in currentState["drivers"]:
-        #   ac.console(driver["name"])
-        # ac.console("=====================")
-
-        # curr_drivers = [driver["name"] for driver in currentState["drivers"]]
-        # prev_drivers = [driver["name"] for driver in previousState["drivers"]]
-
-        # ac.console("prev -- {}".format(', '.join(prev_drivers)))
-        # ac.console("curr -- {}".format(', '.join(curr_drivers)))
-    else:
-        for driver in currentState["drivers"]:
-            if driver["bestLap"] == 0:
-                driver["bestLap"] = 9999999
-        currentState["drivers"].sort(key=lambda driver: driver["bestLap"])
-
-    # Overtakes
-    for pos in range(len(currentState["drivers"])):
-        # ac.console(currentState["drivers"][pos]["name"])
-        # ac.console(previousState["drivers"])
-        # ac.console("{}======".format(datetime.datetime.now()))
-        # ac.console("{}".format(previousState["drivers"][pos]["name"]))
-        # ac.console("name: {}, id: {}".format(currentState["drivers"][pos]["name"], currentState["drivers"][pos]["id"]))
-        # ac.console("======")
-        if currentState["drivers"][pos]["id"] != previousState["drivers"][pos]["id"]:
-            ac.console("OVERTAKE")
-            params = {
-                "position": pos,
-                "overtaker": currentState["drivers"][pos]["name"],
-                "overtaken": previousState["drivers"][pos]["name"],
-            }
-            event_queue.append(Event(EventType.OVERTAKE, params))
-            break
-
-    # # Intervals
-    # if simInfo.graphics.session == 2:
-    #   for pos in range(1, len(currentState["drivers"])):
-    #     interval = calculateTimeInterval(currentState["drivers"][pos - 1], currentState["drivers"][pos])
-    #     params = { "driverAhead": currentState["drivers"][pos - 1], "driverBehind": currentState["drivers"][pos], "interval": interval }
-    #     if (interval < 2 and interval > 1):
-    #       eventQueue.append(getEvent(SHORT_INTERVAL, [], params))
-    #     elif (interval <= 1):
-    #       eventQueue.append(getEvent(DRS_RANGE, [], params))
-
-    # Compare fastest lap
-    if currentState["fastestLap"] != previousState["fastestLap"]:
-        event_queue.append(
-            Event(
-                EventType.FASTEST_LAP,
-                {
-                    "lapTime": currentState["fastestLap"][0],
-                    "driver": currentState["fastestLap"][1],
-                },
-            )
-        )
-
-    # Compare standing
-    # if currentState["drivers"] != previousState["standing"]:
-    #   max_len = max(len(previousState["standing"]), len(currentState["standing"]))
-    #   for i in range(max_len):
-    #     if currentState["standing"][i] != statePrevious["standing"][i]:
-    #       pass
-
-    # # Compare pit times
-    # for driverCurrent in stateCurrent.drivers:
-    #   driverPrevious = statePrevious[[i for i, d in enumerate(statePrevious.drivers) if d.carId == driverCurrent.carId][0]]
-    #   # Driver has entered the pits
-    #   if not driverPrevious.inPit and driverCurrent.inPit:
-    #     driverCurrent.lastPitStart = datetime.datetime.now()
-    #     eventQueue.append(Event(ENTERED_PIT, datetime.datetime.now(), [driverCurrent], {}, stateCurrent.raceMode))
-    #   # Driver has exited the pits
-    #   if driverPrevious.inPit and not driverCurrent.inPit:
-    #     driverCurrent.lastPitEnd = datetime.datetime.now()
-    #     pitLength = (driverCurrent.lastPitEnd - driverCurrent.lastPitStart).total_seconds()
-    #     if pitLength > 60:
-    #       eventQueue.append(Event(LONG_PIT, datetime.datetime.now(), [driverCurrent], { "pit_length": pitLength }, stateCurrent.raceMode))
-    #     elif pitLength < 30:
-    #       eventQueue.append(Event(QUICK_PIT, datetime.datetime.now(), [driverCurrent], { "pit_length": pitLength }, stateCurrent.raceMode))
 
     if len(event_queue) == 0:
         # ac.console("{} -- No events".format(datetime.datetime.now()))
@@ -238,7 +106,7 @@ def generatePrompt(event):
     #     for i, driver in enumerate(event.params["results"]):
     #       prompt += f"{driver} in {i+1}. "
     prompt = ""
-    if event["type"] == EventType.SAFETY_CAR:
+    if event["type"] == EventType.START_SAFETY_CAR:
         pass
     elif event["type"] == EventType.DNF:
         pass
