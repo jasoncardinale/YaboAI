@@ -3,7 +3,8 @@ import datetime
 
 import ac  # type: ignore
 
-from models import Driver, EventType, RaceState
+from llm.services import chat_completion
+from models import Driver, Event, EventType, RaceState
 from third_party.sim_info import SimInfo
 
 # Global constants
@@ -20,7 +21,7 @@ driver_count = 32
 sector_count = 0
 car_in_focus = 0
 
-event_queue = []
+event_queue: list[Event] = []
 
 currentState = RaceState()
 previousState = RaceState()
@@ -72,10 +73,9 @@ def acUpdate(deltaT):
     if last_update_time < 5:
         return
 
-    currentState.update()
+    event_queue.extend(currentState.update())
 
     if len(event_queue) == 0:
-        # ac.console("{} -- No events".format(datetime.datetime.now()))
         step()
         return
 
@@ -85,7 +85,7 @@ def acUpdate(deltaT):
     else:
         is_commentating = True
         prompt = generatePrompt(event_queue.pop())
-        script = enhanceText(prompt)
+        script = chat_completion(prompt)
         audio = textToSpeech(script)
         if audio:
             is_commentating = False
@@ -93,77 +93,57 @@ def acUpdate(deltaT):
     step()
 
 
-def calculateTimeInterval(driverAhead, driverBehind):
-    deltaD = abs(driverAhead["distance"] - driverBehind["distance"])
-    return driverAhead["lastLap"] - (driverBehind["lastLap"] * (1 - deltaD))
-
-
-def generatePrompt(event):
-    ac.console("{} -- event type: {}".format(datetime.datetime.now(), event["type"]))
-    # for event in events.sort(reverse=True):
-    # if event.type == MODE_CHANGE:
-    #   # ToDo: need to figure out how to know when the checkered flag is shown
-    #   if event.raceMode == 3:
-    #     prompt += f'The race has completed. The results are: '
-    #     for i, driver in enumerate(event.params["results"]):
-    #       prompt += f"{driver} in {i+1}. "
+def generatePrompt(event: Event):
+    ac.console("{} -- event type: {}".format(datetime.datetime.now(), event.type))
     prompt = ""
-    if event["type"] == EventType.START_SAFETY_CAR:
-        pass
-    elif event["type"] == EventType.DNF:
-        pass
-    # elif event.type == COLLISION:
-    #   prompt += f"{event['drivers'][0]} and {event['drivers'][1]} had a collision"
-    #   pass
-    elif event["type"] == EventType.OVERTAKE:
-        prompt = "{} has overtaken {} and is now in position {}".format(
-            event["params"]["overtaker"],
-            event["params"]["overtaken"],
-            event["params"]["position"],
-        )
-    elif event["type"] == EventType.FASTEST_LAP:
-        prompt = "{} just set the fastest lap with a time of {}".format(
-            event["drivers"][0]["name"], event["params"]["lapTime"]
-        )
-    # elif event.type == ENTERED_PIT:
-    #   prompt += f'{event.drivers[0].name} has entered the pit. '
-    # elif event.type == SHORT_INTERVAL:
-    #   prompt += f'{event.drivers[0].name} is only {event.params["interval"]}'
-    #   pass
-    # elif event.type == LONG_STINT:
-    #   prompt += f'{event.drivers[0].name} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting.'
-    # elif event.type == LONG_PIT:
-    #   prompt += f'{event.drivers[0].name} had a long pitstop that took {event.params["duration"]} seconds.'
-    # elif event.type == QUICK_PIT:
-    #   prompt += f'{event.drivers[0].name} had a very quick pitstop that took {event.params["duration"]} seconds.'
+    match event.type:
+        case EventType.START_SAFETY_CAR:
+            pass
+        case EventType.END_SAFETY_CAR:
+            pass
+        case EventType.DNF:
+            pass
+        case EventType.COLLISION:
+            pass
+        case EventType.BEST_LAP:
+            pass
+        case EventType.FASTEST_LAP:
+            pass
+        case EventType.ENTERED_PIT:
+            pass
+        case EventType.QUICK_PIT:
+            pass
+        case EventType.LONG_PIT:
+            pass
+        case EventType.SHORT_INTERVAL:
+            pass
+        case EventType.DRS_RANGE:
+            pass
+        case EventType.OVERTAKE:
+            prompt = "{} has overtaken {} and is now in position {}".format(
+                event.params["overtaker"],
+                event.params["overtaken"],
+                event.params["position"],
+            )
+        case EventType.LONG_STINT:
+            pass
+
+        # elif event.type == ENTERED_PIT:
+        #   prompt += f'{event.drivers[0].name} has entered the pit. '
+        # elif event.type == SHORT_INTERVAL:
+        #   prompt += f'{event.drivers[0].name} is only {event.params["interval"]}'
+        #   pass
+        # elif event.type == LONG_STINT:
+        #   prompt += f'{event.drivers[0].name} has completed {event.params["laps"]} laps on {event.param["tire"]} compound tires without pitting.'
+        # elif event.type == LONG_PIT:
+        #   prompt += f'{event.drivers[0].name} had a long pitstop that took {event.params["duration"]} seconds.'
+        # elif event.type == QUICK_PIT:
+        #   prompt += f'{event.drivers[0].name} had a very quick pitstop that took {event.params["duration"]} seconds.'
 
     ac.console(prompt)
-    return prompt
-
-
-def enhanceText(prompt):
     return prompt
 
 
 def textToSpeech(text):
     # time.sleep(10)
     return True
-
-
-# def requestChatGPT(prompt):
-#   driver = webdriver.Chrome()
-#   driver.get('https://chatgpt.openai.com/')
-
-#   input_field = driver.find_element(By.ID, "prompt-textarea")
-#   input_field.send_keys(prompt)
-#   input_field.send_keys(Keys.RETURN)
-
-#   driver.implicitly_wait(10)
-
-#   response = driver.find_element(By.CLASS_NAME, "markdown").text
-#   with open('prompts.txt', 'w') as f:
-#       f.write(response)
-
-#   driver.quit()
-
-#   return response

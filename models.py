@@ -25,27 +25,27 @@ class EventType(Enum):
     # Race has restarted after a safety car
     END_SAFETY_CAR = "end_safety_car"
     # Driver A's engine died/(Did not finish)
-    DNF = "dnf"
+    DNF = "dnf"  # TODO
     # Driver A and Driver B collide
     COLLISION = "collision"  # TODO
-    # Driver A passes Driver B
-    OVERTAKE = "overtake"  # TODO
+    # Driver has set their best lap
+    BEST_LAP = "best_lap"
     # Driver sets the fastest lap
     FASTEST_LAP = "fastest_lap"
     # Driver enters the pit
     ENTERED_PIT = "entered_pit"
-    # Driver A is 1 to 3 second behind Driver B
-    SHORT_INTERVAL = "short_interval"  # TODO
-    # Driver has been on the same set of tires for over 15 laps
-    LONG_STINT = "long_stint"
     # Driver has been in the pit for over 60 seconds
     LONG_PIT = "long_pit"
     # Driver was in the pits for less than 30 seconds
     QUICK_PIT = "quick_pit"
-    # Driver has set their best lap
-    BEST_LAP = "best_lap"
+    # Driver A is 1 to 3 second behind Driver B
+    SHORT_INTERVAL = "short_interval"
     # Driver A is less than 1 second behind Driver B
-    DRS_RANGE = "drs_range"  # TODO
+    DRS_RANGE = "drs_range"
+    # Driver A passes Driver B
+    OVERTAKE = "overtake"  # TODO
+    # Driver has been on the same set of tires for over 15 laps
+    LONG_STINT = "long_stint"
 
 
 class Event:
@@ -227,17 +227,15 @@ class RaceState:
             avg_speed += driver.speed_kmh
         avg_speed /= len(self.drivers)
 
-        def _calculateTimeInterval(driverAhead: Driver, driverBehind: Driver) -> float:
-            deltaD = abs(driverAhead.distance - driverBehind.distance)
-            return driverAhead.last_lap - (driverBehind.last_lap * (1 - deltaD))
-
         sorted_drivers = sorted(
             self.drivers, key=lambda driver: driver.distance, reverse=True
         )
 
         # Check if cars are close to each other
         for i in range(len(self.drivers) - 1):
-            interval = _calculateTimeInterval(sorted_drivers[i], sorted_drivers[i + 1])
+            interval = self._calculateTimeInterval(
+                sorted_drivers[i], sorted_drivers[i + 1]
+            )
             # TODO: definitely need to prevent repeat event reporting here
             if interval < 1:
                 events.append(
@@ -308,3 +306,9 @@ class RaceState:
                     )
 
         return events
+
+    def _calculateTimeInterval(
+        self, driverAhead: Driver, driverBehind: Driver
+    ) -> float:
+        deltaD = abs(driverAhead.distance - driverBehind.distance)
+        return driverAhead.last_lap - (driverBehind.last_lap * (1 - deltaD))
