@@ -43,7 +43,7 @@ class EventType(Enum):
     # Driver A is less than 1 second behind Driver B
     DRS_RANGE = "drs_range"
     # Driver A passes Driver B
-    OVERTAKE = "overtake"  # TODO
+    OVERTAKE = "overtake"
     # Driver has been on the same set of tires for over 15 laps
     LONG_STINT = "long_stint"
 
@@ -143,10 +143,8 @@ class Driver:
                         self.id,
                         {
                             "driver": self.name,
-                            "lap_count": self.lap_count,
-                            "last_lap": self.last_lap,
                             "compound": self.compound,
-                            "duration": duration,
+                            "duration": int(duration.total_seconds()),
                         },
                     )
                 )
@@ -157,10 +155,8 @@ class Driver:
                         self.id,
                         {
                             "driver": self.name,
-                            "lap_count": self.lap_count,
-                            "last_lap": self.last_lap,
                             "compound": self.compound,
-                            "duration": duration,
+                            "duration": int(duration.total_seconds()),
                         },
                     )
                 )
@@ -273,7 +269,7 @@ class RaceState:
                         {
                             "driver_a": sorted_drivers[i].name,
                             "driver_b": sorted_drivers[i + 1].name,
-                            "interval": interval,
+                            "interval": int(interval),
                         },
                     )
                 )
@@ -316,7 +312,6 @@ class RaceState:
                             {
                                 "driver": driver.name,
                                 "lap_time": driver.best_lap,
-                                "lap_count": current_lap,
                             },
                         )
                     )
