@@ -1,4 +1,3 @@
-import copy
 import datetime
 
 import ac  # type: ignore
@@ -23,12 +22,11 @@ car_in_focus = 0
 
 event_queue: list[Event] = []
 
-currentState = RaceState()
-previousState = RaceState()
+current_state = RaceState()
 
 
 def acMain(ac_version):
-    global appWindow, driver_count, currentState, previousState
+    global appWindow, driver_count, current_state, previousState
 
     appWindow = ac.newApp(APP_NAME)
     ac.setTitle(appWindow, APP_NAME)
@@ -39,24 +37,13 @@ def acMain(ac_version):
     driver_count = ac.getCarsCount()
     for id in range(driver_count):
         driver = Driver(id)
-        previousState.add_driver(driver)
-        currentState.add_driver(driver)
+        current_state.add_driver(driver)
 
     return APP_NAME
 
 
 def appGL(deltaT):
     pass
-
-
-def eventPriority():
-    pass
-
-
-def step():
-    global last_update_time, currentState, previousState
-    last_update_time = 0
-    previousState = copy.deepcopy(currentState)
 
 
 def acUpdate(deltaT):
@@ -66,17 +53,16 @@ def acUpdate(deltaT):
         driver_count, \
         car_in_focus, \
         is_commentating, \
-        previousState, \
-        currentState
+        current_state
 
     last_update_time += deltaT
     if last_update_time < 5:
         return
 
-    event_queue.extend(currentState.update())
+    event_queue.extend(current_state.update())
 
     if len(event_queue) == 0:
-        step()
+        last_update_time = 0
         return
 
     if is_commentating:
@@ -92,18 +78,20 @@ def acUpdate(deltaT):
     else:
         is_commentating = True
         event = event_queue.pop()
-        camera_control(event)
+        camera_control(event, current_state)
         prompt = generate_prompt(event)
         script = chat_completion(prompt)
         audio = text_to_speech(script)
         if audio:
             is_commentating = False
 
-    step()
+    last_update_time = 0
 
 
-def camera_control(event: Event):
-    ac.focusCar(event.driver_id)
+def camera_control(event: Event, state: RaceState):
+    success = ac.focusCar(event.driver_id)
+    if not success:
+        ac.focusCar()
 
     match event.type:
         case EventType.START_SAFETY_CAR:
