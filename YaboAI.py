@@ -36,10 +36,14 @@ def acMain(ac_version):
 
     ac.addRenderCallback(appWindow, appGL)
 
+    ac.console("===BEGIN RACE===")
+    ac.console("DRIVERS:")
+
     driver_count = ac.getCarsCount()
     for id in range(driver_count):
         driver = Driver(id)
         current_state.add_driver(driver)
+        ac.console(f"Driver: {driver.name} - {driver.car_name} - {driver.nation}")
 
     return APP_NAME
 
@@ -64,26 +68,33 @@ def acUpdate(deltaT):
     event_queue.extend(current_state.update())
 
     if len(event_queue) == 0:
+        ac.console("No events. Resetting last_update_time")
         camera_control(current_state)
         last_update_time = 0
         return
 
     if is_commentating:
+        ac.console("Actively commentating")
         event = event_queue[0]
-        duration = datetime.datetime.now() - event.time
-        if duration.total_seconds() > 30:
+        duration = (datetime.datetime.now() - event.time).total_seconds()
+        if duration > 30:
             if event.type in [
                 EventType.BEST_LAP,
                 EventType.SHORT_INTERVAL,
                 EventType.ENTERED_PIT,
             ]:
+                ac.console(
+                    f"Oldest {event.type} event is {duration} seconds old. Removing from queue"
+                )
                 event_queue.pop()
     else:
         is_commentating = True
         event = event_queue.pop()
+        ac.console(f"Trigger commentary on {event.type} event")
         camera_control(current_state, event)
         prompt = generate_prompt(event)
         script = chat_completion(prompt)
+        ac.console(f"SCRIPT = '{script}'")
         audio = text_to_speech(script)
         if audio:
             is_commentating = False
@@ -95,18 +106,25 @@ def camera_control(state: RaceState, event: Event | None = None):
     global last_camera_update_time
 
     current_time = datetime.datetime.now()
-    if (current_time - last_camera_update_time).total_seconds() < 10:
+    time_delta = (current_time - last_camera_update_time).total_seconds()
+    if time_delta < 10:
+        ac.console(f"Camera locked for {10 - int(time_delta)} more seconds")
         return
 
     last_camera_update_time = current_time
 
     if not event:
-        ac.focusCar(state.drivers[random.randint(1, len(state.drivers) - 1)])
+        driver = state.drivers[random.randint(1, len(state.drivers) - 1)]
+        ac.focusCar(driver)
+        ac.console(f"No camera event. Randomly focusing on driver: {driver.name}")
         ac.setCameraMode("Random")
         return
 
     if not ac.focusCar(event.driver_id):
-        ac.focusCar(state.drivers[random.randint(1, len(state.drivers) - 1)])
+        ac.console(f"ERROR: Unable to assign focus to driver_id: {event.driver_id}")
+        driver = state.drivers[random.randint(1, len(state.drivers) - 1)]
+        ac.focusCar(driver)
+        ac.console(f"Randomly focusing on driver: {driver.name}")
 
     match event.type:
         case (
@@ -116,12 +134,16 @@ def camera_control(state: RaceState, event: Event | None = None):
             EventType.COLLISION,
         ):
             ac.setCameraMode("Helicopter")
+            ac.console("Selecting HELICOPTER camera")
         case EventType.ENTERED_PIT, EventType.OVERTAKE:
             ac.setCameraMode("Car")
+            ac.console("Selecting CAR camera")
         case EventType.SHORT_INTERVAL, EventType.DRS_RANGE:
             ac.setCameraMode("Cockpit")
+            ac.console("Selecting COCKPIT camera")
         case _:
             ac.setCameraMode("Random")
+            ac.console("Selecting RANDOM camera")
 
 
 def generate_prompt(event: Event):
