@@ -101,36 +101,27 @@ def camera_control(state: RaceState, event: Event | None = None):
     last_camera_update_time = current_time
 
     if not event:
+        ac.focusCar(state.drivers[random.randint(1, len(state.drivers) - 1)])
         ac.setCameraMode("Random")
         return
 
-    success = ac.focusCar(event.driver_id)
-    if not success:
+    if not ac.focusCar(event.driver_id):
         ac.focusCar(state.drivers[random.randint(1, len(state.drivers) - 1)])
 
     match event.type:
-        case EventType.START_SAFETY_CAR, EventType.END_SAFETY_CAR:
+        case (
+            EventType.START_SAFETY_CAR,
+            EventType.END_SAFETY_CAR,
+            EventType.DNF,
+            EventType.COLLISION,
+        ):
             ac.setCameraMode("Helicopter")
-        case EventType.DNF:
-            ac.setCameraMode("Random")
-        case EventType.COLLISION:
-            ac.setCameraMode("Random")
-        case EventType.BEST_LAP:
-            ac.setCameraMode("Random")
-        case EventType.FASTEST_LAP:
-            ac.setCameraMode("Random")
-        case EventType.ENTERED_PIT:
-            ac.setCameraMode("Random")
-        case EventType.QUICK_PIT:
-            ac.setCameraMode("Random")
-        case EventType.LONG_PIT:
-            ac.setCameraMode("Random")
+        case EventType.ENTERED_PIT, EventType.OVERTAKE:
+            ac.setCameraMode("Car")
         case EventType.SHORT_INTERVAL, EventType.DRS_RANGE:
             ac.setCameraMode("Cockpit")
-        case EventType.OVERTAKE:
-            pass
-        case EventType.LONG_STINT:
-            pass
+        case _:
+            ac.setCameraMode("Random")
 
 
 def generate_prompt(event: Event):
