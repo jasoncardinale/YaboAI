@@ -16,6 +16,7 @@ simInfo = SimInfo()
 
 # Global variables
 last_update_time = 0
+last_camera_update_time = datetime.datetime.now()
 is_commentating = False
 driver_count = 32
 sector_count = 0
@@ -91,6 +92,14 @@ def acUpdate(deltaT):
 
 
 def camera_control(state: RaceState, event: Event | None = None):
+    global last_camera_update_time
+
+    current_time = datetime.datetime.now()
+    if (current_time - last_camera_update_time).total_seconds() < 10:
+        return
+
+    last_camera_update_time = current_time
+
     if not event:
         ac.setCameraMode("Random")
         return
