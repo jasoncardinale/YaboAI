@@ -93,6 +93,7 @@ def acUpdate(deltaT):
         ac.console(f"Trigger commentary on {event.type} event")
         camera_control(current_state, event)
         prompt = generate_prompt(event)
+        ac.console(f"PROMPT = {prompt}")
         script = chat_completion(prompt)
         ac.console(f"SCRIPT = '{script}'")
         audio = text_to_speech(script)
@@ -113,15 +114,18 @@ def camera_control(state: RaceState, event: Event | None = None):
 
     last_camera_update_time = current_time
 
-    if not event:
+    if not event or event.type == EventType.DNF:
         driver = state.drivers[random.randint(1, len(state.drivers) - 1)]
         ac.focusCar(driver)
-        ac.console(f"No camera event. Randomly focusing on driver: {driver.name}")
+        ac.console(
+            f"No camera event or driver DNF'd. Randomly focusing on driver: {driver.name}"
+        )
         ac.setCameraMode("Random")
         return
 
+    ac.console(f"Focus on driver_id: {event.driver_id}")
     if not ac.focusCar(event.driver_id):
-        ac.console(f"ERROR: Unable to assign focus to driver_id: {event.driver_id}")
+        ac.console(f"ERROR: Unable to focus on driver_id: {event.driver_id}")
         driver = state.drivers[random.randint(1, len(state.drivers) - 1)]
         ac.focusCar(driver)
         ac.console(f"Randomly focusing on driver: {driver.name}")
@@ -159,7 +163,9 @@ def generate_prompt(event: Event):
                 event.params["lap_count"]
             )
         case EventType.DNF:
-            pass
+            prompt = "The driver named {} is now out of the race due to this reason: {}.".format(
+                event.params["driver"], event.params["reason"]
+            )
         case EventType.COLLISION:
             pass
         case EventType.BEST_LAP:
@@ -217,7 +223,6 @@ def generate_prompt(event: Event):
                 event.params["lap_count"],
             )
 
-    ac.console(prompt)
     return prompt
 
 
