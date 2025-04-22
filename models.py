@@ -93,7 +93,7 @@ class Driver:
         return "{} - {}".format(self.id, self.name)
 
     def update(self) -> List[Event]:
-        events: List[Event] = []
+        events = []
 
         self.last_lap = ac.getCarState(self.id, acsys.CS.LastLap)
         self.best_lap = ac.getCarState(self.id, acsys.CS.BestLap)
@@ -212,16 +212,16 @@ class RaceState:
     """
 
     def __init__(self):
-        self.drivers: List[Driver] = []  # Ordered by position
-        self.fastest_lap: float = sys.float_info.max
-        self.safety_car: bool = False
+        self.drivers = []  # Ordered by position
+        self.fastest_lap = sys.float_info.max
+        self.safety_car = False
 
     def add_driver(self, driver: Driver):
         self.drivers.append(driver)
         self.drivers.sort(key=lambda driver: driver.distance)
 
     def update(self) -> List[Event]:
-        events: List[Event] = []
+        events = []
 
         avg_speed = 0
         for driver in self.drivers:
