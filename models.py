@@ -78,12 +78,15 @@ class Driver:
 
     def __init__(self, id: int):
         self.id = id
-        self.name = str(ac.getDriverName(id))
-        self.nation = str(ac.getDriverNationCode(id))
-        self.car_name = str(ac.getCarName(id))
+        self.name = ac.getDriverName(id)
+        self.nation = ac.getDriverNationCode(id)
+        self.car_name = ac.getCarName(id)
+        self.compound = ac.getCarTyreCompound(id)
         self.pit_stops = 0
         self.tire_age = 0
         self.last_compound_change_lap = 0
+        self.connected = False
+        self.in_pit = False
 
         self.update()
 
@@ -99,7 +102,6 @@ class Driver:
         self.speed_kmh = ac.getCarState(self.id, acsys.CS.SpeedKMH)
         self.lap_distance = ac.getCarState(self.id, acsys.CS.NormalizedSplinePosition)
         self.distance = self.lap_count + self.lap_distance
-        self.connected = False
 
         # Check if the driver has left the game (DNF)
         connected = ac.isConnected(self.id)
