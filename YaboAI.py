@@ -111,7 +111,7 @@ def acUpdate(deltaT):
     last_update_time = 0
 
 
-def camera_control(state: RaceState, event: Event | None = None):
+def camera_control(state: RaceState, event=None):
     global last_camera_update_time
 
     current_time = datetime.datetime.now()
