@@ -99,6 +99,7 @@ class Driver:
         self.speed_kmh = ac.getCarState(self.id, acsys.CS.SpeedKMH)
         self.lap_distance = ac.getCarState(self.id, acsys.CS.NormalizedSplinePosition)
         self.distance = self.lap_count + self.lap_distance
+        self.connected = False
 
         # Check if the driver has left the game (DNF)
         connected = ac.isConnected(self.id)
