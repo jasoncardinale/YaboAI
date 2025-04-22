@@ -136,98 +136,100 @@ def camera_control(state: RaceState, event: Event | None = None):
         ac.focusCar(driver)
         ac.console("Randomly focusing on driver: {}".format(driver.name))
 
-    match event.type:
-        case (
-            EventType.START_SAFETY_CAR,
-            EventType.END_SAFETY_CAR,
-            EventType.DNF,
-            EventType.COLLISION,
-        ):
-            ac.setCameraMode("Helicopter")
-            ac.console("Selecting HELICOPTER camera")
-        case EventType.ENTERED_PIT, EventType.OVERTAKE:
-            ac.setCameraMode("Car")
-            ac.console("Selecting CAR camera")
-        case EventType.SHORT_INTERVAL, EventType.DRS_RANGE:
-            ac.setCameraMode("Cockpit")
-            ac.console("Selecting COCKPIT camera")
-        case _:
-            ac.setCameraMode("Random")
-            ac.console("Selecting RANDOM camera")
+    if event.type in (
+        EventType.START_SAFETY_CAR,
+        EventType.END_SAFETY_CAR,
+        EventType.DNF,
+        EventType.COLLISION,
+    ):
+        ac.setCameraMode("Helicopter")
+        ac.console("Selecting HELICOPTER camera")
+    elif event.type in (EventType.ENTERED_PIT, EventType.OVERTAKE):
+        ac.setCameraMode("Car")
+        ac.console("Selecting CAR camera")
+    elif event.type in (EventType.SHORT_INTERVAL, EventType.DRS_RANGE):
+        ac.setCameraMode("Cockpit")
+        ac.console("Selecting COCKPIT camera")
+    else:
+        ac.setCameraMode("Random")
+        ac.console("Selecting RANDOM camera")
 
 
 def generate_prompt(event: Event):
     ac.console("{} -- event type: {}".format(datetime.datetime.now(), event.type))
     prompt = ""
-    match event.type:
-        case EventType.START_SAFETY_CAR:
-            prompt = "The safety car has come out on lap {}.".format(
-                event.params["lap_count"]
-            )
-        case EventType.END_SAFETY_CAR:
-            prompt = "The safety car has now ended on lap {}.".format(
-                event.params["lap_count"]
-            )
-        case EventType.DNF:
-            prompt = "The driver named {} is now out of the race due to this reason: {}.".format(
+    if event.type == EventType.START_SAFETY_CAR:
+        prompt = "The safety car has come out on lap {}.".format(
+            event.params["lap_count"]
+        )
+    elif event.type == EventType.END_SAFETY_CAR:
+        prompt = "The safety car has now ended on lap {}.".format(
+            event.params["lap_count"]
+        )
+    elif event.type == EventType.DNF:
+        prompt = (
+            "The driver named {} is now out of the race due to this reason: {}.".format(
                 event.params["driver"], event.params["reason"]
             )
-        case EventType.COLLISION:
-            pass
-        case EventType.BEST_LAP:
-            prompt = "The driver named {} has just set a personal best with a lap time of {}.".format(
-                event.params["driver"], event.params["lap_time"]
-            )
-        case EventType.FASTEST_LAP:
-            prompt = "The driver named {} has just set the fastest lap with a time of {}.".format(
-                event.params["driver"], event.params["lap_time"]
-            )
-        case EventType.ENTERED_PIT:
-            prompt = "The driver named {} has entered the pit on lap {}. They completed their last lap with a time of {} on the {} compound tire.".format(
-                event.params["driver"],
-                event.params["lap_count"],
-                event.params["last_lap"],
-                event.params["compound"],
-            )
-        case EventType.QUICK_PIT:
-            prompt = "The driver named {} just finished a quick pit stop that lasted {} seconds. They are now running the {} compound tire.".format(
-                event.params["driver"],
-                event.params["duration"],
-                event.params["compound"],
-            )
-        case EventType.LONG_PIT:
-            prompt = "The driver named {} just finished a long pit stop that lasted {} seconds. They are now running the {} compound tire.".format(
-                event.params["driver"],
-                event.params["duration"],
-                event.params["compound"],
-            )
-        case EventType.SHORT_INTERVAL:
-            prompt = "The driver named {} is within {} seconds of the driver named {}.".format(
+        )
+    elif event.type == EventType.COLLISION:
+        pass
+    elif event.type == EventType.BEST_LAP:
+        prompt = "The driver named {} has just set a personal best with a lap time of {}.".format(
+            event.params["driver"], event.params["lap_time"]
+        )
+    elif event.type == EventType.FASTEST_LAP:
+        prompt = "The driver named {} has just set the fastest lap with a time of {}.".format(
+            event.params["driver"], event.params["lap_time"]
+        )
+    elif event.type == EventType.ENTERED_PIT:
+        prompt = "The driver named {} has entered the pit on lap {}. They completed their last lap with a time of {} on the {} compound tire.".format(
+            event.params["driver"],
+            event.params["lap_count"],
+            event.params["last_lap"],
+            event.params["compound"],
+        )
+    elif event.type == EventType.QUICK_PIT:
+        prompt = "The driver named {} just finished a quick pit stop that lasted {} seconds. They are now running the {} compound tire.".format(
+            event.params["driver"],
+            event.params["duration"],
+            event.params["compound"],
+        )
+    elif event.type == EventType.LONG_PIT:
+        prompt = "The driver named {} just finished a long pit stop that lasted {} seconds. They are now running the {} compound tire.".format(
+            event.params["driver"],
+            event.params["duration"],
+            event.params["compound"],
+        )
+    elif event.type == EventType.SHORT_INTERVAL:
+        prompt = (
+            "The driver named {} is within {} seconds of the driver named {}.".format(
                 event.params["driver_b"],
                 event.params["interval"],
                 event.params["driver_a"],
             )
-        case EventType.DRS_RANGE:
-            prompt = "The driver named {} is within {} seconds of the driver named {}. They can now use DRS to help with overtaking.".format(
-                event.params["driver_b"],
-                event.params["interval"],
-                event.params["driver_a"],
-            )
-        case EventType.OVERTAKE:
-            prompt = "The driver named {} has overtaken the driver named {}. The driver named {} is now in position {}.".format(
-                event.params["driver_a"],
-                event.params["driver_b"],
-                event.params["driver_a"],
-                event.params["position"],
-            )
-        case EventType.LONG_STINT:
-            prompt = "The driver named {} has now completed {} laps with the {} compound tires. They completed the last lap with a time of {}. We are now on lap {}".format(
-                event.params["driver"],
-                event.params["tire_age"],
-                event.params["compound"],
-                event.params["last_lap"],
-                event.params["lap_count"],
-            )
+        )
+    elif event.type == EventType.DRS_RANGE:
+        prompt = "The driver named {} is within {} seconds of the driver named {}. They can now use DRS to help with overtaking.".format(
+            event.params["driver_b"],
+            event.params["interval"],
+            event.params["driver_a"],
+        )
+    elif event.type == EventType.OVERTAKE:
+        prompt = "The driver named {} has overtaken the driver named {}. The driver named {} is now in position {}.".format(
+            event.params["driver_a"],
+            event.params["driver_b"],
+            event.params["driver_a"],
+            event.params["position"],
+        )
+    elif event.type == EventType.LONG_STINT:
+        prompt = "The driver named {} has now completed {} laps with the {} compound tires. They completed the last lap with a time of {}. We are now on lap {}".format(
+            event.params["driver"],
+            event.params["tire_age"],
+            event.params["compound"],
+            event.params["last_lap"],
+            event.params["lap_count"],
+        )
 
     return prompt
 
