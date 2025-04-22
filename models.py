@@ -1,6 +1,5 @@
 import datetime
 import sys
-from ctypes import c_int32
 from enum import Enum
 from typing import Any, List
 
@@ -60,8 +59,7 @@ class Event:
         self.driver_id = driver_id
         self.time = datetime.datetime.now()
         self.params = params
-
-        self.race_mode: c_int32 = SimInfo().graphics.session
+        self.race_mode = SimInfo().graphics.session
 
     def __str__(self):
         return "{} - {} - {} - {}".format(
