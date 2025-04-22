@@ -1,6 +1,5 @@
 import datetime
 import sys
-from typing import Any, List
 
 import ac  # type: ignore
 import acsys  # type: ignore
@@ -53,7 +52,7 @@ class Event:
     Contains all relevant information for a particular event
     """
 
-    def __init__(self, event_type: str, driver_id: int, params: dict[str, Any]):
+    def __init__(self, event_type: str, driver_id: int, params):
         self.type = event_type
         self.driver_id = driver_id
         self.time = datetime.datetime.now()
@@ -91,7 +90,7 @@ class Driver:
     def __str__(self) -> str:
         return "{} - {}".format(self.id, self.name)
 
-    def update(self) -> List[Event]:
+    def update(self):
         events = []
 
         self.last_lap = ac.getCarState(self.id, acsys.CS.LastLap)
@@ -219,7 +218,7 @@ class RaceState:
         self.drivers.append(driver)
         self.drivers.sort(key=lambda driver: driver.distance)
 
-    def update(self) -> List[Event]:
+    def update(self):
         events = []
 
         avg_speed = 0
