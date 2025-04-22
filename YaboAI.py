@@ -2,6 +2,7 @@ import datetime
 import random
 
 import ac  # type: ignore
+import acsys  # type: ignore
 
 from llm.services import chat_completion
 from models import Driver, Event, EventType, RaceState
@@ -16,7 +17,7 @@ simInfo = SimInfo()
 
 # Global variables
 last_update_time = 0
-last_camera_update_time = datetime.datetime.now()
+last_camera_update_time = 0
 is_commentating = False
 driver_count = 32
 sector_count = 0
@@ -28,7 +29,7 @@ current_state = RaceState()
 
 
 def acMain(ac_version):
-    global appWindow, driver_count, current_state, previousState
+    global appWindow, driver_count, current_state
 
     appWindow = ac.newApp(APP_NAME)
     ac.setTitle(appWindow, APP_NAME)
@@ -57,6 +58,7 @@ def appGL(deltaT):
 def acUpdate(deltaT):
     global \
         last_update_time, \
+        last_camera_update_time, \
         event_queue, \
         driver_count, \
         car_in_focus, \
@@ -64,6 +66,7 @@ def acUpdate(deltaT):
         current_state
 
     last_update_time += deltaT
+    last_camera_update_time += deltaT
     if last_update_time < 5:
         return
 
@@ -110,23 +113,19 @@ def acUpdate(deltaT):
 def camera_control(state: RaceState, event=None):
     global last_camera_update_time
 
-    current_time = datetime.datetime.now()
-    time_delta = (current_time - last_camera_update_time).total_seconds()
-    if time_delta < 10:
-        ac.console("Camera locked for {} more seconds".format(10 - int(time_delta)))
+    if last_camera_update_time < 10:
+        ac.console("Camera locked for {} more seconds".format(10 - int(last_camera_update_time)))
         return
-
-    last_camera_update_time = current_time
 
     if not event or event.type == EventType.DNF:
         driver = state.drivers[random.randint(1, len(state.drivers) - 1)]
-        ac.focusCar(driver)
+        ac.focusCar(driver.id)
         ac.console(
             "No camera event or driver DNF'd. Randomly focusing on driver: {}".format(
                 driver.name
             )
         )
-        ac.setCameraMode("Random")
+        ac.setCameraMode(acsys.CM.Random)
         return
 
     ac.console("Focus on driver_id: {}".format(event.driver_id))
@@ -142,17 +141,19 @@ def camera_control(state: RaceState, event=None):
         EventType.DNF,
         EventType.COLLISION,
     ):
-        ac.setCameraMode("Helicopter")
+        ac.setCameraMode(acsys.CM.Helicopter)
         ac.console("Selecting HELICOPTER camera")
     elif event.type in (EventType.ENTERED_PIT, EventType.OVERTAKE):
-        ac.setCameraMode("Car")
+        ac.setCameraMode(acsys.CM.Car)
         ac.console("Selecting CAR camera")
     elif event.type in (EventType.SHORT_INTERVAL, EventType.DRS_RANGE):
-        ac.setCameraMode("Cockpit")
+        ac.setCameraMode(acsys.CM.Cockpit)
         ac.console("Selecting COCKPIT camera")
     else:
-        ac.setCameraMode("Random")
+        ac.setCameraMode(acsys.CM.Random)
         ac.console("Selecting RANDOM camera")
+
+    last_camera_update_time = 0
 
 
 def generate_prompt(event: Event):

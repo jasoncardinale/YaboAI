@@ -170,7 +170,7 @@ class Driver:
         self.in_pit = in_pit
 
         # Check if the driver has set their best lap
-        if self.last_lap == self.best_lap:
+        if self.lap_count > 3 and self.last_lap == self.best_lap:
             ac.console("EVENT: {} - {}".format(EventType.BEST_LAP, self.name))
             events.append(
                 Event(
@@ -236,68 +236,70 @@ class RaceState:
             self.drivers, key=lambda driver: driver.distance, reverse=True
         )
 
-        # Check for overtakes and short intervals
-        for i in range(len(sorted_drivers) - 2):
-            if (
-                sorted_drivers[i].id != self.drivers[i].id
-                and sorted_drivers[i + 1].id == self.drivers[i].id
-            ):
-                ac.console(
-                    "EVENT: {} - {}".format(EventType.OVERTAKE, sorted_drivers[i].name)
-                )
-                events.append(
-                    Event(
-                        EventType.OVERTAKE,
-                        sorted_drivers[i].id,
-                        {
-                            "driver_a": sorted_drivers[i].name,
-                            "driver_b": sorted_drivers[i + 1].name,
-                            "position": i + 1,
-                        },
-                    )
-                )
-
-            interval = self._calculateTimeInterval(
-                sorted_drivers[i], sorted_drivers[i + 1]
-            )
-            # TODO: definitely need to prevent repeat event reporting here
-            if interval < 1:
-                ac.console(
-                    "EVENT: {} - {}".format(
-                        EventType.DRS_RANGE, sorted_drivers[i + 1].name
-                    )
-                )
-                events.append(
-                    Event(
-                        EventType.DRS_RANGE,
-                        sorted_drivers[i + 1].id,
-                        {
-                            "driver_a": sorted_drivers[i].name,
-                            "driver_b": sorted_drivers[i + 1].name,
-                            "interval": interval,
-                        },
-                    )
-                )
-            elif interval < 3:
-                ac.console(
-                    "EVENT: {} - {}".format(
-                        EventType.SHORT_INTERVAL, sorted_drivers[i + 1].name
-                    )
-                )
-                events.append(
-                    Event(
-                        EventType.SHORT_INTERVAL,
-                        sorted_drivers[i + 1].id,
-                        {
-                            "driver_a": sorted_drivers[i].name,
-                            "driver_b": sorted_drivers[i + 1].name,
-                            "interval": int(interval),
-                        },
-                    )
-                )
-        self.drivers = sorted_drivers
-
         current_lap = self.drivers[0].lap_count
+
+        # Check for overtakes and short intervals
+        if current_lap > 3:
+            for i in range(len(sorted_drivers) - 2):
+                if (
+                    sorted_drivers[i].id != self.drivers[i].id
+                    and sorted_drivers[i + 1].id == self.drivers[i].id
+                ):
+                    ac.console(
+                        "EVENT: {} - {}".format(EventType.OVERTAKE, sorted_drivers[i].name)
+                    )
+                    events.append(
+                        Event(
+                            EventType.OVERTAKE,
+                            sorted_drivers[i].id,
+                            {
+                                "driver_a": sorted_drivers[i].name,
+                                "driver_b": sorted_drivers[i + 1].name,
+                                "position": i + 1,
+                            },
+                        )
+                    )
+
+                interval = self._calculateTimeInterval(
+                    sorted_drivers[i], sorted_drivers[i + 1]
+                )
+                # TODO: definitely need to prevent repeat event reporting here
+                if interval < 1:
+                    ac.console(
+                        "EVENT: {} - {}".format(
+                            EventType.DRS_RANGE, sorted_drivers[i + 1].name
+                        )
+                    )
+                    events.append(
+                        Event(
+                            EventType.DRS_RANGE,
+                            sorted_drivers[i + 1].id,
+                            {
+                                "driver_a": sorted_drivers[i].name,
+                                "driver_b": sorted_drivers[i + 1].name,
+                                "interval": interval,
+                            },
+                        )
+                    )
+                elif interval < 3:
+                    ac.console(
+                        "EVENT: {} - {}".format(
+                            EventType.SHORT_INTERVAL, sorted_drivers[i + 1].name
+                        )
+                    )
+                    events.append(
+                        Event(
+                            EventType.SHORT_INTERVAL,
+                            sorted_drivers[i + 1].id,
+                            {
+                                "driver_a": sorted_drivers[i].name,
+                                "driver_b": sorted_drivers[i + 1].name,
+                                "interval": int(interval),
+                            },
+                        )
+                    )
+
+        self.drivers = sorted_drivers
 
         # Check for safety car
         if not self.safety_car and current_lap > 1 and avg_speed < 30:
