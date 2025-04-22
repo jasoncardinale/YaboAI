@@ -1,6 +1,5 @@
 import datetime
 import sys
-from enum import Enum
 from typing import Any, List
 
 import ac  # type: ignore
@@ -9,7 +8,7 @@ import acsys  # type: ignore
 from third_party.sim_info import SimInfo
 
 
-class EventType(Enum):
+class EventType:
     """
     Event Types
 
@@ -54,7 +53,7 @@ class Event:
     Contains all relevant information for a particular event
     """
 
-    def __init__(self, event_type: EventType, driver_id: int, params: dict[str, Any]):
+    def __init__(self, event_type: str, driver_id: int, params: dict[str, Any]):
         self.type = event_type
         self.driver_id = driver_id
         self.time = datetime.datetime.now()
