@@ -1,5 +1,6 @@
 import datetime
 import random
+import sys
 
 import ac  # type: ignore
 
@@ -11,6 +12,9 @@ from third_party.sim_info import SimInfo
 APP_NAME = "YaboAI"
 FOCUS_DURATION_MIN_MS = 300
 FOCUS_DURATION_MAX_MS = 1500
+
+print("Python version: ", sys.version)
+print(sys.version_info)
 
 simInfo = SimInfo()
 

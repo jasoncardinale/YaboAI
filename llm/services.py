@@ -4,7 +4,7 @@ import json
 import ac  # type: ignore
 
 
-def chat_completion(prompt: str) -> str | None:
+def chat_completion(prompt: str):
     conn = http.client.HTTPConnection("localhost", 11434)
     headers = {"Content-type": "application/json"}
     payload = json.dumps(
