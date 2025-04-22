@@ -1,6 +1,8 @@
 import http.client
 import json
 
+import ac  # type: ignore
+
 
 def chat_completion(prompt: str) -> str | None:
     conn = http.client.HTTPConnection("localhost", 11434)
@@ -20,5 +22,5 @@ def chat_completion(prompt: str) -> str | None:
         response_data = response.read().decode()
         return json.loads(response_data)["response"].strip()
     else:
-        print(f"Error: {response.status}")
+        ac.console("Error: {}".format(response.status))
         return None
