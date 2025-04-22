@@ -1,5 +1,6 @@
 import datetime
 import random
+from typing import List
 
 import ac  # type: ignore
 
@@ -22,7 +23,7 @@ driver_count = 32
 sector_count = 0
 car_in_focus = 0
 
-event_queue: list[Event] = []
+event_queue: List[Event] = []
 
 current_state = RaceState()
 

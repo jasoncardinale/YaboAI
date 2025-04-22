@@ -2,7 +2,7 @@ import datetime
 import sys
 from ctypes import c_int32
 from enum import Enum
-from typing import Any
+from typing import Any, List
 
 import ac  # type: ignore
 import acsys  # type: ignore
@@ -92,8 +92,8 @@ class Driver:
     def __str__(self) -> str:
         return f"{self.id} - {self.name}"
 
-    def update(self) -> list[Event]:
-        events: list[Event] = []
+    def update(self) -> List[Event]:
+        events: List[Event] = []
 
         self.last_lap = ac.getCarState(self.id, acsys.CS.LastLap)
         self.best_lap = ac.getCarState(self.id, acsys.CS.BestLap)
@@ -212,7 +212,7 @@ class RaceState:
     """
 
     def __init__(self):
-        self.drivers: list[Driver] = []  # Ordered by position
+        self.drivers: List[Driver] = []  # Ordered by position
         self.fastest_lap: float = sys.float_info.max
         self.safety_car: bool = False
 
@@ -220,8 +220,8 @@ class RaceState:
         self.drivers.append(driver)
         self.drivers.sort(key=lambda driver: driver.distance)
 
-    def update(self) -> list[Event]:
-        events: list[Event] = []
+    def update(self) -> List[Event]:
+        events: List[Event] = []
 
         avg_speed = 0
         for driver in self.drivers:
