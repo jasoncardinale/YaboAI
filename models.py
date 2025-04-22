@@ -4,8 +4,6 @@ import sys
 import ac  # type: ignore
 import acsys  # type: ignore
 
-from third_party.sim_info import SimInfo
-
 
 class EventType:
     """
@@ -57,11 +55,10 @@ class Event:
         self.driver_id = driver_id
         self.time = datetime.datetime.now()
         self.params = params
-        self.race_mode = SimInfo().graphics.session
 
     def __str__(self):
         return "{} - {} - {} - {}".format(
-            self.type, self.time, self.params, self.race_mode
+            self.type, self.driver_id, self.time, self.params
         )
 
 
@@ -87,8 +84,13 @@ class Driver:
         self.last_compound_change_lap = 0
         self.connected = False
         self.in_pit = False
+        self.last_lap = ac.getCarState(self.id, acsys.CS.LastLap)
+        self.best_lap = ac.getCarState(self.id, acsys.CS.BestLap)
+        self.lap_count = ac.getCarState(self.id, acsys.CS.LapCount)
+        self.speed_kmh = ac.getCarState(self.id, acsys.CS.SpeedKMH)
+        self.lap_distance = ac.getCarState(self.id, acsys.CS.NormalizedSplinePosition)
+        self.distance = self.lap_count + self.lap_distance
 
-        self.update()
 
     def __str__(self) -> str:
         return "{} - {}".format(self.id, self.name)
