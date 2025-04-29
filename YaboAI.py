@@ -1,5 +1,6 @@
 import datetime
 import random
+import threading
 
 import ac  # type: ignore
 import acsys  # type: ignore
@@ -99,13 +100,9 @@ def acUpdate(deltaT):
         event = event_queue.pop()
         ac.console("Trigger commentary on {} event".format(event.type))
         camera_control(current_state, event)
-        prompt = generate_prompt(event)
-        ac.console("PROMPT = '{}'".format(prompt))
-        script = chat_completion(prompt)
-        ac.console("SCRIPT = '{}'".format(script))
-        audio = text_to_speech(script)
-        if audio:
-            is_commentating = False
+        
+        commentary_thread = threading.Thread(target=handle_commentary, args=(event,))
+        commentary_thread.start()
 
     last_update_time = 0
 
@@ -155,6 +152,27 @@ def camera_control(state: RaceState, event=None):
         ac.console("Selecting RANDOM camera")
 
     last_camera_update_time = 0
+
+
+def handle_commentary(event):
+    """
+    Handles chat completion and audio generation in a separate thread.
+    """
+    global is_commentating
+
+    # Generate the prompt
+    prompt = generate_prompt(event)
+    ac.console("PROMPT = '{}'".format(prompt))
+
+    # Get the chat completion
+    script = chat_completion(prompt)
+    ac.console("SCRIPT = '{}'".format(script))
+
+    # Generate audio
+    audio = text_to_speech(script)
+    if audio:
+        ac.console("Audio generation complete")
+        is_commentating = False
 
 
 def generate_prompt(event: Event):

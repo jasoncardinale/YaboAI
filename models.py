@@ -87,6 +87,7 @@ class Driver:
         self.lap_count = ac.getCarState(self.id, acsys.CS.LapCount)
         self.speed_kmh = ac.getCarState(self.id, acsys.CS.SpeedKMH)
         self.lap_distance = ac.getCarState(self.id, acsys.CS.NormalizedSplinePosition)
+        self.drs_available = ac.getCarState(self.id, acsys.CS.DrsAvailable)
         self.distance = self.lap_count + self.lap_distance
         self.event_history = defaultdict(int)
 
@@ -102,6 +103,7 @@ class Driver:
         self.lap_count = ac.getCarState(self.id, acsys.CS.LapCount)
         self.speed_kmh = ac.getCarState(self.id, acsys.CS.SpeedKMH)
         self.lap_distance = ac.getCarState(self.id, acsys.CS.NormalizedSplinePosition)
+        self.drs_available = ac.getCarState(self.id, acsys.CS.DrsAvailable)
         self.distance = self.lap_count + self.lap_distance
 
         # Check if the driver has left the game (DNF)
@@ -173,7 +175,7 @@ class Driver:
         self.in_pit = in_pit
 
         # Check if the driver has set their best lap
-        if self.lap_count > 3 and self.last_lap == self.best_lap and self.lap_count - self.event_history[EventType.BEST_LAP] > 0:
+        if self.last_lap == self.best_lap and self.lap_count - self.event_history[EventType.BEST_LAP] > 0:
             ac.console("EVENT: {} - {}".format(EventType.BEST_LAP, self.name))
             events.append(
                 Event(
@@ -245,69 +247,69 @@ class RaceState:
         current_lap = sorted_drivers[0].lap_count
 
         # Check for overtakes and short intervals
-        if current_lap > 0:
-            for i in range(len(sorted_drivers) - 2):
-                if (
-                    sorted_drivers[i].id != self.drivers[i].id
-                    and sorted_drivers[i + 1].id == self.drivers[i].id
-                    and current_lap - self.event_history[EventType.OVERTAKE] > 0
-                ):
-                    ac.console(
-                        "EVENT: {} - {}".format(EventType.OVERTAKE, sorted_drivers[i].name)
-                    )
-                    events.append(
-                        Event(
-                            EventType.OVERTAKE,
-                            sorted_drivers[i].id,
-                            {
-                                "driver_a": sorted_drivers[i].name,
-                                "driver_b": sorted_drivers[i + 1].name,
-                                "position": i + 1,
-                            },
-                        )
-                    )
-                    self.event_history[EventType.OVERTAKE] = current_lap
-
-                interval = self._calculateTimeInterval(
-                    sorted_drivers[i], sorted_drivers[i + 1]
+        for i in range(len(sorted_drivers) - 1):
+            if (
+                sorted_drivers[i].id != self.drivers[i].id
+                and sorted_drivers[i + 1].id == self.drivers[i].id
+                and current_lap - self.event_history[EventType.OVERTAKE] > 0
+            ):
+                ac.console(
+                    "EVENT: {} - {}".format(EventType.OVERTAKE, sorted_drivers[i].name)
                 )
-                # TODO: definitely need to prevent repeat event reporting here
-                if interval < 1 and current_lap - self.event_history[EventType.DRS_RANGE] > 0:
-                    ac.console(
-                        "EVENT: {} - {}".format(
-                            EventType.DRS_RANGE, sorted_drivers[i + 1].name
-                        )
+                events.append(
+                    Event(
+                        EventType.OVERTAKE,
+                        sorted_drivers[i].id,
+                        {
+                            "driver_a": sorted_drivers[i].name,
+                            "driver_b": sorted_drivers[i + 1].name,
+                            "position": i + 1,
+                        },
                     )
-                    events.append(
-                        Event(
-                            EventType.DRS_RANGE,
-                            sorted_drivers[i + 1].id,
-                            {
-                                "driver_a": sorted_drivers[i].name,
-                                "driver_b": sorted_drivers[i + 1].name,
-                                "interval": interval,
-                            },
-                        )
+                )
+                self.event_history[EventType.OVERTAKE] = current_lap
+
+            interval = self._calculateTimeInterval(
+                sorted_drivers[i], sorted_drivers[i + 1]
+            )
+            ac.console("DRS available: {} - {}".format(sorted_drivers[i].drs_available, sorted_drivers[i + 1].drs_available))
+            # ac.console("Interval: {} - {}".format(interval, sorted_drivers[i + 1].name))
+            if sorted_drivers[i + 1].drs_available and current_lap - self.event_history[EventType.DRS_RANGE] > -1:
+                ac.console(
+                    "EVENT: {} - {}".format(
+                        EventType.DRS_RANGE, sorted_drivers[i + 1].name
                     )
-                    self.event_history[EventType.DRS_RANGE] = current_lap
-                elif interval < 3 and current_lap - self.event_history[EventType.SHORT_INTERVAL] > 0:
-                    ac.console(
-                        "EVENT: {} - {}".format(
-                            EventType.SHORT_INTERVAL, sorted_drivers[i + 1].name
-                        )
+                )
+                events.append(
+                    Event(
+                        EventType.DRS_RANGE,
+                        sorted_drivers[i + 1].id,
+                        {
+                            "driver_a": sorted_drivers[i].name,
+                            "driver_b": sorted_drivers[i + 1].name,
+                            "interval": interval,
+                        },
                     )
-                    events.append(
-                        Event(
-                            EventType.SHORT_INTERVAL,
-                            sorted_drivers[i + 1].id,
-                            {
-                                "driver_a": sorted_drivers[i].name,
-                                "driver_b": sorted_drivers[i + 1].name,
-                                "interval": int(interval),
-                            },
-                        )
+                )
+                self.event_history[EventType.DRS_RANGE] = current_lap
+            elif interval < 3 and current_lap - self.event_history[EventType.SHORT_INTERVAL] > 0:
+                ac.console(
+                    "EVENT: {} - {}".format(
+                        EventType.SHORT_INTERVAL, sorted_drivers[i + 1].name
                     )
-                    self.event_history[EventType.SHORT_INTERVAL] = current_lap
+                )
+                events.append(
+                    Event(
+                        EventType.SHORT_INTERVAL,
+                        sorted_drivers[i + 1].id,
+                        {
+                            "driver_a": sorted_drivers[i].name,
+                            "driver_b": sorted_drivers[i + 1].name,
+                            "interval": int(interval),
+                        },
+                    )
+                )
+                self.event_history[EventType.SHORT_INTERVAL] = current_lap
 
         self.drivers = sorted_drivers
 
@@ -341,7 +343,7 @@ class RaceState:
         for driver in self.drivers:
             if driver.best_lap < self.fastest_lap:
                 self.fastest_lap = driver.best_lap
-                if current_lap > 5:
+                if current_lap > 3:
                     # Don't report fastest lap on the first few laps
                     ac.console(
                         "EVENT: {} - {}".format(EventType.FASTEST_LAP, driver.name)
