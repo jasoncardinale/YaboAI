@@ -126,6 +126,7 @@ def camera_control(state: RaceState, event=None):
             )
         )
         ac.setCameraMode(acsys.CM.Random)
+        last_camera_update_time = 0
         return
 
     ac.console("Focus on driver_id: {}".format(event.driver_id))

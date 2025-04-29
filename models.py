@@ -123,7 +123,7 @@ class Driver:
 
         # Track the duration of the driver's pitstop
         in_pit = bool(ac.isCarInPitline(self.id) or ac.isCarInPit(self.id))
-        if not self.in_pit and in_pit and self.lap_count - self.event_history[EventType.ENTERED_PIT] > 1:
+        if not self.in_pit and in_pit and self.lap_count - self.event_history[EventType.ENTERED_PIT] > 0:
             self.latest_pit_start = datetime.datetime.now()
             self.pit_stops += 1
             ac.console("EVENT: {} - {}".format(EventType.ENTERED_PIT, self.name))
@@ -142,7 +142,7 @@ class Driver:
             self.event_history[EventType.ENTERED_PIT] = self.lap_count
         elif self.in_pit and not in_pit:
             duration = datetime.datetime.now() - self.latest_pit_start
-            if duration.total_seconds() > 60 and self.lap_count - self.event_history[EventType.LONG_PIT] > 1:
+            if duration.total_seconds() > 60 and self.lap_count - self.event_history[EventType.LONG_PIT] > 0:
                 ac.console("EVENT: {} - {}".format(EventType.LONG_PIT, self.name))
                 events.append(
                     Event(
@@ -156,7 +156,7 @@ class Driver:
                     )
                 )
                 self.event_history[EventType.LONG_PIT] = self.lap_count
-            elif duration.total_seconds() < 30 and self.lap_count - self.event_history[EventType.QUICK_PIT] > 1:
+            elif duration.total_seconds() < 30 and self.lap_count - self.event_history[EventType.QUICK_PIT] > 0:
                 ac.console("EVENT: {} - {}".format(EventType.QUICK_PIT, self.name))
                 events.append(
                     Event(
@@ -173,7 +173,7 @@ class Driver:
         self.in_pit = in_pit
 
         # Check if the driver has set their best lap
-        if self.lap_count > 3 and self.last_lap == self.best_lap and self.lap_count - self.event_history[EventType.BEST_LAP] > 1:
+        if self.lap_count > 3 and self.last_lap == self.best_lap and self.lap_count - self.event_history[EventType.BEST_LAP] > 0:
             ac.console("EVENT: {} - {}".format(EventType.BEST_LAP, self.name))
             events.append(
                 Event(
@@ -191,7 +191,7 @@ class Driver:
             self.last_compound_change_lap = 0
         else:
             self.tire_age = self.lap_count - self.last_compound_change_lap
-            if self.tire_age > 15 and self.lap_count - self.event_history[EventType.LONG_STINT] > 1:
+            if self.tire_age > 15 and self.lap_count - self.event_history[EventType.LONG_STINT] > 0:
                 ac.console("EVENT: {} - {}".format(EventType.LONG_STINT, self.name))
                 events.append(
                     Event(
@@ -250,7 +250,7 @@ class RaceState:
                 if (
                     sorted_drivers[i].id != self.drivers[i].id
                     and sorted_drivers[i + 1].id == self.drivers[i].id
-                    and current_lap - self.event_history[EventType.OVERTAKE] > 1
+                    and current_lap - self.event_history[EventType.OVERTAKE] > 0
                 ):
                     ac.console(
                         "EVENT: {} - {}".format(EventType.OVERTAKE, sorted_drivers[i].name)
@@ -272,7 +272,7 @@ class RaceState:
                     sorted_drivers[i], sorted_drivers[i + 1]
                 )
                 # TODO: definitely need to prevent repeat event reporting here
-                if interval < 1 and current_lap - self.event_history[EventType.DRS_RANGE] > 1:
+                if interval < 1 and current_lap - self.event_history[EventType.DRS_RANGE] > 0:
                     ac.console(
                         "EVENT: {} - {}".format(
                             EventType.DRS_RANGE, sorted_drivers[i + 1].name
@@ -290,7 +290,7 @@ class RaceState:
                         )
                     )
                     self.event_history[EventType.DRS_RANGE] = current_lap
-                elif interval < 3 and current_lap - self.event_history[EventType.SHORT_INTERVAL] > 1:
+                elif interval < 3 and current_lap - self.event_history[EventType.SHORT_INTERVAL] > 0:
                     ac.console(
                         "EVENT: {} - {}".format(
                             EventType.SHORT_INTERVAL, sorted_drivers[i + 1].name
@@ -312,7 +312,7 @@ class RaceState:
         self.drivers = sorted_drivers
 
         # Check for safety car
-        if not self.safety_car and current_lap > 1 and avg_speed < 30 and current_lap - self.event_history[EventType.START_SAFETY_CAR] > 1:
+        if not self.safety_car and current_lap > 1 and avg_speed < 30 and current_lap - self.event_history[EventType.START_SAFETY_CAR] > 0:
             self.safety_car = True
             ac.console("EVENT: {}".format(EventType.START_SAFETY_CAR))
             events.append(
@@ -323,7 +323,7 @@ class RaceState:
                 )
             )
             self.event_history[EventType.START_SAFETY_CAR] = current_lap
-        elif self.safety_car and avg_speed > 160 and current_lap - self.event_history[EventType.END_SAFETY_CAR] > 1:
+        elif self.safety_car and avg_speed > 160 and current_lap - self.event_history[EventType.END_SAFETY_CAR] > 0:
             self.safety_car = False
             ac.console("EVENT: {}".format(EventType.END_SAFETY_CAR))
             events.append(
