@@ -4,6 +4,8 @@ import sys
 import ac  # type: ignore
 import acsys  # type: ignore
 
+from collections import defaultdict
+
 
 class EventType:
     """
@@ -69,10 +71,6 @@ class Driver:
     Contains all race relevant information for a particular driver
     """
 
-    # TODO: Need to keep track of events that have already been reported
-    # probably using a dictionary with the event type as the key and the last lap it was reported on
-    # as the value. This way we can make sure the reporting on similar events is spaced out
-
     def __init__(self, id: int):
         self.id = id
         self.name = ac.getDriverName(id)
@@ -90,6 +88,7 @@ class Driver:
         self.speed_kmh = ac.getCarState(self.id, acsys.CS.SpeedKMH)
         self.lap_distance = ac.getCarState(self.id, acsys.CS.NormalizedSplinePosition)
         self.distance = self.lap_count + self.lap_distance
+        self.event_history = defaultdict(int)
 
 
     def __str__(self) -> str:
@@ -107,7 +106,7 @@ class Driver:
 
         # Check if the driver has left the game (DNF)
         connected = ac.isConnected(self.id)
-        if self.connected and not connected:
+        if self.connected and not connected and EventType.DNF not in self.event_history:
             ac.console("EVENT: {} - {}".format(EventType.DNF, self.name))
             events.append(
                 Event(
@@ -119,11 +118,12 @@ class Driver:
                     },
                 )
             )
+            self.event_history[EventType.DNF] = self.last_lap
         self.connected = connected
 
         # Track the duration of the driver's pitstop
         in_pit = bool(ac.isCarInPitline(self.id) or ac.isCarInPit(self.id))
-        if not self.in_pit and in_pit:
+        if not self.in_pit and in_pit and self.lap_count - self.event_history[EventType.ENTERED_PIT] > 1:
             self.latest_pit_start = datetime.datetime.now()
             self.pit_stops += 1
             ac.console("EVENT: {} - {}".format(EventType.ENTERED_PIT, self.name))
@@ -139,9 +139,10 @@ class Driver:
                     },
                 )
             )
+            self.event_history[EventType.ENTERED_PIT] = self.lap_count
         elif self.in_pit and not in_pit:
             duration = datetime.datetime.now() - self.latest_pit_start
-            if duration.total_seconds() > 60:
+            if duration.total_seconds() > 60 and self.lap_count - self.event_history[EventType.LONG_PIT] > 1:
                 ac.console("EVENT: {} - {}".format(EventType.LONG_PIT, self.name))
                 events.append(
                     Event(
@@ -154,7 +155,8 @@ class Driver:
                         },
                     )
                 )
-            elif duration.total_seconds() < 30:
+                self.event_history[EventType.LONG_PIT] = self.lap_count
+            elif duration.total_seconds() < 30 and self.lap_count - self.event_history[EventType.QUICK_PIT] > 1:
                 ac.console("EVENT: {} - {}".format(EventType.QUICK_PIT, self.name))
                 events.append(
                     Event(
@@ -167,10 +169,11 @@ class Driver:
                         },
                     )
                 )
+                self.event_history[EventType.QUICK_PIT] = self.lap_count
         self.in_pit = in_pit
 
         # Check if the driver has set their best lap
-        if self.lap_count > 3 and self.last_lap == self.best_lap:
+        if self.lap_count > 3 and self.last_lap == self.best_lap and self.lap_count - self.event_history[EventType.BEST_LAP] > 1:
             ac.console("EVENT: {} - {}".format(EventType.BEST_LAP, self.name))
             events.append(
                 Event(
@@ -179,6 +182,7 @@ class Driver:
                     {"driver": self.name, "lap_time": self.best_lap},
                 )
             )
+            self.event_history[EventType.BEST_LAP] = self.lap_count
 
         # Check tire age
         compound = ac.getCarTyreCompound(self.id)
@@ -187,7 +191,7 @@ class Driver:
             self.last_compound_change_lap = 0
         else:
             self.tire_age = self.lap_count - self.last_compound_change_lap
-            if self.tire_age > 15:
+            if self.tire_age > 15 and self.lap_count - self.event_history[EventType.LONG_STINT] > 1:
                 ac.console("EVENT: {} - {}".format(EventType.LONG_STINT, self.name))
                 events.append(
                     Event(
@@ -202,6 +206,7 @@ class Driver:
                         },
                     )
                 )
+                self.event_history[EventType.LONG_STINT] = self.lap_count
         self.compound = compound
 
         return events
@@ -218,6 +223,7 @@ class RaceState:
         self.drivers = []  # Ordered by position
         self.fastest_lap = sys.float_info.max
         self.safety_car = False
+        self.event_history = defaultdict(int)
 
     def add_driver(self, driver: Driver):
         self.drivers.append(driver)
@@ -236,14 +242,15 @@ class RaceState:
             self.drivers, key=lambda driver: driver.distance, reverse=True
         )
 
-        current_lap = self.drivers[0].lap_count
+        current_lap = sorted_drivers[0].lap_count
 
         # Check for overtakes and short intervals
-        if current_lap > 3:
+        if current_lap > 0:
             for i in range(len(sorted_drivers) - 2):
                 if (
                     sorted_drivers[i].id != self.drivers[i].id
                     and sorted_drivers[i + 1].id == self.drivers[i].id
+                    and current_lap - self.event_history[EventType.OVERTAKE] > 1
                 ):
                     ac.console(
                         "EVENT: {} - {}".format(EventType.OVERTAKE, sorted_drivers[i].name)
@@ -259,12 +266,13 @@ class RaceState:
                             },
                         )
                     )
+                    self.event_history[EventType.OVERTAKE] = current_lap
 
                 interval = self._calculateTimeInterval(
                     sorted_drivers[i], sorted_drivers[i + 1]
                 )
                 # TODO: definitely need to prevent repeat event reporting here
-                if interval < 1:
+                if interval < 1 and current_lap - self.event_history[EventType.DRS_RANGE] > 1:
                     ac.console(
                         "EVENT: {} - {}".format(
                             EventType.DRS_RANGE, sorted_drivers[i + 1].name
@@ -281,7 +289,8 @@ class RaceState:
                             },
                         )
                     )
-                elif interval < 3:
+                    self.event_history[EventType.DRS_RANGE] = current_lap
+                elif interval < 3 and current_lap - self.event_history[EventType.SHORT_INTERVAL] > 1:
                     ac.console(
                         "EVENT: {} - {}".format(
                             EventType.SHORT_INTERVAL, sorted_drivers[i + 1].name
@@ -298,11 +307,12 @@ class RaceState:
                             },
                         )
                     )
+                    self.event_history[EventType.SHORT_INTERVAL] = current_lap
 
         self.drivers = sorted_drivers
 
         # Check for safety car
-        if not self.safety_car and current_lap > 1 and avg_speed < 30:
+        if not self.safety_car and current_lap > 1 and avg_speed < 30 and current_lap - self.event_history[EventType.START_SAFETY_CAR] > 1:
             self.safety_car = True
             ac.console("EVENT: {}".format(EventType.START_SAFETY_CAR))
             events.append(
@@ -312,7 +322,8 @@ class RaceState:
                     {"lap_count": current_lap},
                 )
             )
-        elif self.safety_car and avg_speed > 160:
+            self.event_history[EventType.START_SAFETY_CAR] = current_lap
+        elif self.safety_car and avg_speed > 160 and current_lap - self.event_history[EventType.END_SAFETY_CAR] > 1:
             self.safety_car = False
             ac.console("EVENT: {}".format(EventType.END_SAFETY_CAR))
             events.append(
@@ -324,6 +335,7 @@ class RaceState:
                     )
                 )
             )
+            self.event_history[EventType.END_SAFETY_CAR] = current_lap
 
         # Check for fastest lap
         for driver in self.drivers:

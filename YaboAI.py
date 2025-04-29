@@ -89,7 +89,7 @@ def acUpdate(deltaT):
                 EventType.ENTERED_PIT,
             ]:
                 ac.console(
-                    "Oldest {} event is {} seconds old. Removing from queue".format(
+                    "{} event is {} seconds old. Removing from queue".format(
                         event.type, duration
                     )
                 )
@@ -113,8 +113,8 @@ def acUpdate(deltaT):
 def camera_control(state: RaceState, event=None):
     global last_camera_update_time
 
-    if last_camera_update_time < 10:
-        ac.console("Camera locked for {} more seconds".format(10 - int(last_camera_update_time)))
+    if last_camera_update_time < 15:
+        ac.console("Camera locked for {} more seconds".format(15 - int(last_camera_update_time)))
         return
 
     if not event or event.type == EventType.DNF:
