@@ -31,6 +31,8 @@ def process_prompt():
         # Extract the response text
         response_text = response["response"].strip()
 
+        print(f"1 Response written to {RESPONSE_FILE}: {response_text}")
+
         # Write the response to the response file
         with open(RESPONSE_FILE, "w") as f:
             f.write(response_text)

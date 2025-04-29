@@ -1,5 +1,5 @@
 import time
-
+import os
 
 def chat_completion(prompt: str):
     try:
@@ -12,7 +12,7 @@ def chat_completion(prompt: str):
             f.write(prompt)
 
         # Wait for the response to be written by the external script
-        timeout = 10  # Timeout in seconds
+        timeout = 20  # Timeout in seconds
         start_time = time.time()
 
         while True:
@@ -22,11 +22,9 @@ def chat_completion(prompt: str):
                     response = f.read().strip()
                     if response:
                         # Delete the response file after reading
-                        import os
-
                         os.remove(response_file)
                         return response
-            except FileNotFoundError:
+            except Exception:
                 pass
 
             # Check for timeout
