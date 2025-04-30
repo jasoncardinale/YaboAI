@@ -1,10 +1,13 @@
-import time
 import os
-import ollama
 import re
-import pygame  # For playing audio
-from TTS.TTS.api import TTS
+import time
+
+import ollama
+import pygame
 import torch
+
+from TTS.TTS.api import TTS
+
 # File paths
 PROMPT_FILE = "prompt.txt"
 STATUS_FILE = "status.txt"
@@ -14,15 +17,16 @@ AUDIO_DIR = "audio_responses"
 os.makedirs(AUDIO_DIR, exist_ok=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+
 def remove_emojis(text):
     """
     Removes emojis and other non-standard characters from the text.
     """
     emoji_pattern = re.compile(
-        "[\U0001F600-\U0001F64F]|"  # Emoticons
-        "[\U0001F300-\U0001F5FF]|"  # Symbols & pictographs
-        "[\U0001F680-\U0001F6FF]|"  # Transport & map symbols
-        "[\U0001F1E0-\U0001F1FF]",  # Flags
+        "[\U0001f600-\U0001f64f]|"  # Emoticons
+        "[\U0001f300-\U0001f5ff]|"  # Symbols & pictographs
+        "[\U0001f680-\U0001f6ff]|"  # Transport & map symbols
+        "[\U0001f1e0-\U0001f1ff]",  # Flags
         flags=re.UNICODE,
     )
     return emoji_pattern.sub("", text)
@@ -34,7 +38,11 @@ def text_to_speech_ai(text, audio_file_path):
     """
     try:
         # Initialize the TTS model (you can specify a different model if needed)
-        tts = TTS(model_name="tts_models/en/ljspeech/speedy-speech", progress_bar=False, gpu=False)
+        tts = TTS(
+            model_name="tts_models/en/ljspeech/speedy-speech",
+            progress_bar=False,
+            gpu=False,
+        )
 
         # Generate the WAV file
         tts.tts_to_file(text=text, file_path=audio_file_path)

@@ -1,5 +1,6 @@
-import time
 import os
+import time
+
 
 def chat_completion(prompt: str):
     try:
