@@ -1,6 +1,6 @@
-import time
 import os
 import tempfile
+import time
 
 TEMP_DIR = tempfile.gettempdir()
 PROMPT_FILE = os.path.join(TEMP_DIR, "prompt.txt")
