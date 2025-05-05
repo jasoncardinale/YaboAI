@@ -3,8 +3,8 @@ import tempfile
 import time
 
 TEMP_DIR = tempfile.gettempdir()
-PROMPT_FILE = os.path.join(TEMP_DIR, "prompt.txt")
-STATUS_FILE = os.path.join(TEMP_DIR, "status.txt")
+PROMPT_FILE = os.path.join(TEMP_DIR, "yaboai_prompt.txt")
+STATUS_FILE = os.path.join(TEMP_DIR, "yaboai_status.txt")
 
 def generate_commentary(prompt: str):
     try:
