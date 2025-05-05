@@ -6,7 +6,7 @@ TEMP_DIR = tempfile.gettempdir()
 PROMPT_FILE = os.path.join(TEMP_DIR, "prompt.txt")
 STATUS_FILE = os.path.join(TEMP_DIR, "status.txt")
 
-def chat_completion(prompt: str):
+def generate_commentary(prompt: str):
     try:
         if os.path.exists(STATUS_FILE):
             os.remove(STATUS_FILE)
@@ -15,7 +15,7 @@ def chat_completion(prompt: str):
             f.write(prompt)
 
         # Wait for the status file to indicate success or failure
-        timeout = 60  # Timeout in seconds
+        timeout = 120  # Timeout in seconds
         start_time = time.time()
 
         while True:
@@ -48,7 +48,7 @@ def chat_completion(prompt: str):
 if __name__ == "__main__":
     prompt = "The driver named Dabro has just set a personal best with a lap time of 1:33.456"
 
-    success = chat_completion(prompt)
+    success = generate_commentary(prompt)
 
     if success:
         print("Audio played successfully.")

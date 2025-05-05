@@ -5,7 +5,7 @@ import threading
 import ac  # type: ignore
 import acsys  # type: ignore
 
-from llm.services import chat_completion
+from llm.services import generate_commentary
 from models import Driver, Event, EventType, RaceState
 from third_party.sim_info import SimInfo
 
@@ -160,18 +160,15 @@ def handle_commentary(event):
     """
     global is_commentating
 
-    # Generate the prompt
-    prompt = generate_prompt(event)
-    ac.console("PROMPT = '{}'".format(prompt))
+    try:
+        # Generate the prompt
+        prompt = generate_prompt(event)
+        ac.console("PROMPT = '{}'".format(prompt))
 
-    # Get the chat completion
-    script = chat_completion(prompt)
-    ac.console("SCRIPT = '{}'".format(script))
-
-    # Generate audio
-    audio = text_to_speech(script)
-    if audio:
-        ac.console("Audio generation complete")
+        # Get the chat completion from ollama and generate/play audio
+        success = generate_commentary(prompt)
+        ac.console("SCRIPT STATUS = '{}'".format(success))
+    finally:
         is_commentating = False
 
 
@@ -252,8 +249,3 @@ def generate_prompt(event: Event):
         )
 
     return prompt
-
-
-def text_to_speech(text):
-    # time.sleep(10)
-    return True
