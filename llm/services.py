@@ -1,33 +1,34 @@
 import time
 import os
+import tempfile
+
+TEMP_DIR = tempfile.gettempdir()
+PROMPT_FILE = os.path.join(TEMP_DIR, "prompt.txt")
+STATUS_FILE = os.path.join(TEMP_DIR, "status.txt")
 
 def chat_completion(prompt: str):
     try:
-        # File paths for communication
-        prompt_file = "prompt.txt"
-        status_file = "status.txt"
-
+        if os.path.exists(STATUS_FILE):
+            os.remove(STATUS_FILE)
         # Write the prompt to the file with utf-8 encoding
-        with open(prompt_file, "w", encoding="utf-8") as f:
+        with open(PROMPT_FILE, "w", encoding="utf-8") as f:
             f.write(prompt)
 
         # Wait for the status file to indicate success or failure
-        timeout = 20  # Timeout in seconds
+        timeout = 60  # Timeout in seconds
         start_time = time.time()
 
         while True:
             # Check if the status file exists
             try:
-                with open(status_file, "r", encoding="utf-8") as f:
+                with open(STATUS_FILE, "r", encoding="utf-8") as f:
                     status = f.read().strip()
                     if status == "true":
-                        os.remove(status_file)
                         return True
                     elif status == "false":
-                        os.remove(status_file)
                         return False
-            except FileNotFoundError:
-                pass
+            except Exception:
+                print("Status file not found, waiting...")
 
             # Check for timeout
             if time.time() - start_time > timeout:
@@ -35,22 +36,22 @@ def chat_completion(prompt: str):
 
             # Sleep briefly to avoid busy-waiting
             time.sleep(0.1)
-
     except Exception as e:
         print(f"Error: {e}")
         return False
+    finally:
+        if os.path.exists(STATUS_FILE):
+            os.remove(STATUS_FILE)
 
 
 # Call the main function
 if __name__ == "__main__":
-    # Example prompt to send to the external script
-    prompt = "Tell me a joke about racing."
+    prompt = "The driver named Dabro has just set a personal best with a lap time of 1:33.456"
 
-    # Call the chat_completion function
     success = chat_completion(prompt)
 
-    # Print the result
     if success:
         print("Audio played successfully.")
     else:
         print("Failed to process the prompt.")
+    
