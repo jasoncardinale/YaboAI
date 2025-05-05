@@ -101,7 +101,7 @@ def acUpdate(deltaT):
         ac.console("Trigger commentary on {} event".format(event.type))
         camera_control(current_state, event)
         
-        commentary_thread = threading.Thread(target=handle_commentary, args=(event,))
+        commentary_thread = threading.Thread(target=handle_commentary, args=(event), daemon=True)
         commentary_thread.start()
 
     last_update_time = 0
@@ -227,7 +227,7 @@ def generate_prompt(event: Event):
             )
         )
     elif event.type == EventType.DRS_RANGE:
-        prompt = "The driver named {} is within {} seconds of the driver named {}. They can now use DRS to help with overtaking.".format(
+        prompt = "The driver named {} is within {} seconds of the driver named {}. They can now use D-R-S to help with overtaking.".format(
             event.params["driver_b"],
             event.params["interval"],
             event.params["driver_a"],
